@@ -1,0 +1,1843 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>업무 관리</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#21262d;--surf3:#2d333b;
+  --border:#30363d;--accent:#f0b429;--accent2:#fcd34d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#484f58;
+  --red:#f85149;--orange:#f0883e;--green:#3fb950;--blue:#58a6ff;--purple:#bc8cff;
+  --r:10px;
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+.page{display:none;min-height:100vh}
+.page.active{display:block}
+
+/* HEADER */
+.header{background:var(--surf);padding:12px 16px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border)}
+.header-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.app-title{font-size:16px;font-weight:900;color:var(--accent);letter-spacing:-0.5px}
+.header-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.icon-btn:hover{background:var(--surf3);color:var(--text)}
+.date-nav{display:flex;align-items:center;gap:8px;justify-content:center}
+.date-display{font-size:15px;font-weight:700;color:var(--text);cursor:pointer;min-width:160px;text-align:center;padding:6px 10px;background:var(--surf2);border-radius:8px;border:1px solid var(--border)}
+.date-today-btn{font-size:11px;font-weight:700;background:rgba(240,180,41,.15);color:var(--accent);border:1px solid rgba(240,180,41,.3);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+
+/* NAV GRID */
+.nav-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 16px}
+.nav-btn{background:var(--surf);border:1px solid var(--border);color:var(--text);padding:13px 8px;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.3}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nav-btn .nb-icon{font-size:18px}
+.nav-btn.excel-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* TODAY TASKS */
+.section-label{padding:10px 16px 6px;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.task-list{padding:0 12px 80px}
+.task-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;position:relative;cursor:pointer;transition:transform .15s}
+.task-card-inner{padding:12px 14px;background:var(--surf)}
+.task-card-body{display:flex;align-items:center;gap:8px}
+.task-card-content{flex:1;min-width:0;cursor:pointer}
+.status-change-btn{flex-shrink:0;background:var(--surf2);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.3;text-align:center}
+.status-change-btn:hover{border-color:var(--accent);color:var(--accent)}
+.task-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4}
+.task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:12px;font-weight:700;white-space:nowrap}
+.tag-red{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.tag-orange{background:rgba(240,136,62,.12);color:var(--orange);border:1px solid rgba(240,136,62,.2)}
+.tag-blue{background:rgba(88,166,255,.12);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.tag-green{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.tag-purple{background:rgba(188,140,255,.12);color:var(--purple);border:1px solid rgba(188,140,255,.2)}
+.tag-gray{background:rgba(139,148,158,.1);color:var(--text2);border:1px solid rgba(139,148,158,.15)}
+.tag-accent{background:rgba(240,180,41,.12);color:var(--accent);border:1px solid rgba(240,180,41,.2)}
+.tl-overdue{border-left:3px solid var(--red)}
+.tl-warn{border-left:3px solid var(--orange)}
+.tl-periodic{border-left:3px solid var(--blue)}
+.tl-normal{border-left:3px solid var(--border)}
+.tl-completed{opacity:.5}
+
+/* PAGE HEADER */
+.page-header{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.page-header-title{font-size:16px;font-weight:800;flex:1}
+.back-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:22px;line-height:1;padding:0}
+
+/* LIST ITEMS */
+.list-item{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;padding:14px 16px;cursor:pointer;transition:border-color .15s}
+.list-item:hover{border-color:var(--accent)}
+.li-name{font-size:13px;font-weight:700;margin-bottom:6px}
+.li-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-end;justify-content:center;padding:0}
+.modal-overlay.active{display:flex}
+.modal{background:var(--surf);width:100%;max-height:92vh;overflow-y:auto;padding:20px 18px 32px;border-radius:16px 16px 0 0;border-top:2px solid var(--accent);position:relative}
+.modal-drag{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;flex-shrink:0}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:16px;font-weight:800}
+.close-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;letter-spacing:.5px}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--surf2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.form-textarea{resize:vertical;min-height:72px}
+.form-note{font-size:11px;color:var(--text3);margin-top:4px;line-height:1.5}
+.form-hint{font-size:11px;background:var(--surf3);border-radius:6px;padding:8px 10px;margin-top:6px;color:var(--text2);line-height:1.6}
+
+/* OPTION BUTTONS */
+.opt-group{display:flex;flex-wrap:wrap;gap:6px}
+.opt-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Noto Sans KR',sans-serif;transition:all .15s}
+.opt-btn.sel{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.opt-btn.sel-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+
+/* BUTTONS */
+.btn{padding:11px 18px;border-radius:8px;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:var(--accent);color:#000;width:100%}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:var(--surf2);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn-row .btn{flex:1}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#000;font-size:26px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(240,180,41,.4);z-index:150;transition:transform .2s}
+.fab:active{transform:scale(.9)}
+
+/* STATUS PICKER */
+.status-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center}
+.status-overlay.active{display:flex}
+.status-picker{background:var(--surf);border-radius:14px;padding:20px;width:280px;border-top:2px solid var(--accent)}
+.status-picker-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px}
+.status-opt{padding:12px 16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:13px;font-weight:700;transition:all .15s}
+.status-opt:hover{border-color:var(--accent);color:var(--accent)}
+.status-opt:last-child{margin-bottom:0}
+
+/* STATUS BADGES */
+.sbadge{font-size:10px;padding:2px 8px;border-radius:12px;font-weight:700}
+.s-검토중{background:rgba(240,136,62,.12);color:var(--orange)}
+.s-회신대기중{background:rgba(240,180,41,.12);color:var(--accent)}
+.s-완료{background:rgba(63,185,80,.12);color:var(--green)}
+.s-미완료{background:rgba(139,148,158,.1);color:var(--text2)}
+.s-미수행{background:rgba(248,81,73,.12);color:var(--red)}
+.s-보류{background:rgba(188,140,255,.12);color:var(--purple)}
+
+/* HOLIDAY */
+.holiday-btn{background:var(--surf);border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:5px;transition:all .2s;margin:0 16px 8px}
+.holiday-btn:hover{border-color:var(--purple);color:var(--purple)}
+.holiday-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.holiday-item-date{font-size:13px;font-weight:700}
+.holiday-item-label{font-size:11px;color:var(--text2)}
+.holiday-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px}
+.holiday-del-btn:hover{color:var(--red)}
+.status-date-row{margin-bottom:12px;padding:10px 12px;background:var(--surf2);border-radius:8px;border:1px solid var(--border)}
+.status-date-label{font-size:11px;color:var(--text2);font-weight:700;margin-bottom:6px;display:block}
+
+/* CALENDAR */
+.cal-modal{background:var(--surf);border-radius:14px;width:calc(100% - 32px);max-width:400px;padding:20px;max-height:90vh;overflow-y:auto;margin:auto}
+.cal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:250;align-items:center;justify-content:center}
+.cal-overlay.active{display:flex}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-month{font-size:15px;font-weight:800}
+.cal-nav-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dh{text-align:center;font-size:11px;font-weight:700;color:var(--text3);padding:6px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;cursor:pointer;font-size:12px;font-weight:500;position:relative;transition:background .15s}
+.cal-day:hover:not(.cal-empty){background:var(--surf2)}
+.cal-today{background:var(--accent)!important;color:#000!important;font-weight:900}
+.cal-selected{background:var(--surf3)!important;border:1.5px solid var(--accent)}
+.cal-dot::after{content:'';width:4px;height:4px;background:var(--accent);border-radius:50%;position:absolute;bottom:2px}
+.cal-today.cal-dot::after{background:#000}
+.cal-empty{cursor:default}
+.cal-selected-info{margin-top:14px;padding:14px;background:var(--surf2);border-radius:10px;min-height:60px}
+.cal-info-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px}
+.cal-task-item{font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);color:var(--text);display:flex;align-items:center;gap:6px}
+.cal-task-item:last-child{border-bottom:none}
+
+/* SEARCH */
+.search-bar{padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative}
+.search-input{width:100%;background:var(--surf2);border:1px solid var(--border);color:var(--text);padding:9px 12px 9px 34px;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none}
+.search-input:focus{border-color:var(--accent)}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px}
+
+/* TABS */
+.tab-bar{display:flex;background:var(--surf);border-bottom:1px solid var(--border)}
+.tab-item{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab-item.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* FILTER CHIPS */
+.filter-row{display:flex;gap:6px;padding:8px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filter-row::-webkit-scrollbar{display:none}
+.chip{background:var(--surf2);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Noto Sans KR',sans-serif}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#000}
+
+/* PROGRESS */
+.prog-item{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.prog-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.prog-date{font-size:11px;color:var(--text3);font-weight:600}
+.prog-text{font-size:12px;color:var(--text);line-height:1.5}
+.prog-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surf3);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;opacity:0;transition:all .3s;z-index:500;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* EMPTY */
+.empty{text-align:center;padding:52px 20px;color:var(--text3)}
+.empty-ico{font-size:44px;margin-bottom:10px}
+.empty-txt{font-size:13px}
+
+/* IMPORTANCE */
+.imp-a{color:var(--red);font-weight:800}
+.imp-b{color:var(--orange);font-weight:800}
+.imp-c{color:var(--green);font-weight:800}
+
+/* FIREBASE NOTICE */
+.fb-notice{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:10px 14px;margin:10px 16px;font-size:11px;color:var(--blue);line-height:1.6}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+select option{background:var(--surf2)}
+
+.date-filter-row{display:flex;gap:8px;align-items:center;padding:0 16px 8px}
+.date-filter-row .form-input{padding:8px 10px;font-size:12px}
+.date-filter-row label{font-size:11px;color:var(--text2);white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- STATUS OVERLAY -->
+<div class="status-overlay" id="statusOverlay">
+  <div class="status-picker">
+    <div class="status-picker-title">📋 현황 변경</div>
+    <div class="status-date-row" id="statusDateRow" style="display:none">
+      <span class="status-date-label">📅 날짜 지정 (주기업무)</span>
+      <input type="date" class="form-input" id="statusDateInput" style="font-size:13px;padding:7px 10px">
+    </div>
+    <div class="status-opt" onclick="setStatus('미완료')">🔲 미완료</div>
+    <div class="status-opt" onclick="setStatus('미수행')">⛔ 미수행</div>
+    <div class="status-opt" onclick="setStatus('검토중')">🔍 검토중</div>
+    <div class="status-opt" onclick="setStatus('회신대기중')">⏳ 회신대기중</div>
+    <div class="status-opt" onclick="setStatus('완료')">✅ 완료</div>
+    <div class="status-opt" onclick="setStatus('보류')">⏸ 보류</div>
+    <div class="status-opt" style="margin-top:8px;border-top:1px solid var(--border);border-radius:0;background:none;color:var(--text3)" onclick="closeStatusOverlay()">취소</div>
+  </div>
+</div>
+
+<!-- CALENDAR OVERLAY -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-modal">
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+      <div class="cal-month" id="calMonthTitle"></div>
+      <button class="cal-nav-btn" onclick="calNext()">›</button>
+      <button class="close-btn" onclick="document.getElementById('calOverlay').classList.remove('active')" style="margin-left:8px">✕</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-selected-info" id="calSelectedInfo">
+      <div class="cal-info-title">날짜를 선택하세요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: MAIN -->
+<!-- ============================================================ -->
+<div class="page active" id="pagMain">
+  <div class="header">
+    <div class="header-row1">
+      <div class="app-title">⚡ 업무 관리</div>
+      <div class="header-actions">
+        <button class="date-today-btn" onclick="goToday()">오늘</button>
+        <button class="icon-btn" title="달력" onclick="openCalendar()">📅</button>
+      </div>
+    </div>
+    <div class="date-nav">
+      <button class="icon-btn" onclick="changeDate(-1)">‹</button>
+      <div class="date-display" id="dateDisplay" onclick="openCalendar()"></div>
+      <button class="icon-btn" onclick="changeDate(1)">›</button>
+    </div>
+  </div>
+  <div id="fbNotice"></div>
+  <div class="nav-grid">
+    <button class="nav-btn" onclick="showPage('pagPeriodic')"><span class="nb-icon">🔄</span>주기업무 List</button>
+    <button class="nav-btn" onclick="showPage('pagOneTime')"><span class="nb-icon">📌</span>일회성업무 List</button>
+    <button class="nav-btn" onclick="showPage('pagCompleted')"><span class="nb-icon">✅</span>완료업무 List</button>
+    <button class="nav-btn excel-btn" onclick="downloadExcel()"><span class="nb-icon">📊</span>업무List 엑셀 다운</button>
+  </div>
+  <button class="holiday-btn" onclick="openHolidayModal()">🏖 회사 휴일 관리</button>
+  <div id="todayTaskContainer"></div>
+</div>
+
+<!-- MODAL: HOLIDAY MANAGEMENT -->
+<div class="modal-overlay" id="modalHoliday">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title">🏖 회사 휴일 관리</div>
+      <button class="close-btn" onclick="closeModal('modalHoliday')">✕</button>
+    </div>
+    <div class="form-note" style="margin-bottom:12px;color:var(--text2)">
+      주말(토·일)은 자동으로 휴일 처리됩니다. 아래에는 추가 회사 휴일(공휴일·임시휴일 등)을 등록하세요.<br>
+      주기업무(일일 제외)의 수행일이 휴일이면 다음 근무일로 자동 이동합니다.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:flex-end">
+      <div style="flex:1">
+        <label class="form-label">날짜 선택</label>
+        <input type="date" class="form-input" id="newHolidayDate">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">이름 (선택)</label>
+        <input class="form-input" id="newHolidayName" placeholder="예: 창립기념일">
+      </div>
+      <button class="btn btn-primary" style="width:auto;padding:10px 16px;flex-shrink:0" onclick="addHoliday()">추가</button>
+    </div>
+    <div id="holidayList"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: PERIODIC -->
+<!-- ============================================================ -->
+<div class="page" id="pagPeriodic">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">🔄 주기업무 List</div>
+    <button class="icon-btn" onclick="openPeriodicForm(null)">＋</button>
+  </div>
+  <div class="task-list" id="periodicList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: ONE-TIME -->
+<!-- ============================================================ -->
+<div class="page" id="pagOneTime">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">📌 일회성업무 List</div>
+    <button class="icon-btn" onclick="openOneTimeForm(null)">＋</button>
+  </div>
+  <div class="filter-row" id="oneTimeFilterRow"></div>
+  <div class="task-list" id="oneTimeList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: COMPLETED -->
+<!-- ============================================================ -->
+<div class="page" id="pagCompleted">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">✅ 완료업무 List</div>
+  </div>
+  <div class="tab-bar">
+    <div class="tab-item active" id="tabPeriodic" onclick="switchCompletedTab('periodic')">주기업무</div>
+    <div class="tab-item" id="tabOneTime" onclick="switchCompletedTab('oneTime')">일회성업무</div>
+  </div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input class="search-input" id="completedSearch" placeholder="키워드 검색..." oninput="renderCompleted()">
+    </div>
+  </div>
+  <div class="date-filter-row">
+    <label>기간:</label>
+    <input type="date" class="form-input" id="completedFrom" onchange="renderCompleted()">
+    <span style="color:var(--text3);font-size:12px">~</span>
+    <input type="date" class="form-input" id="completedTo" onchange="renderCompleted()">
+  </div>
+  <div class="task-list" id="completedList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: PERIODIC FORM -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="modalPeriodic">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="periodicModalTitle">주기업무 추가</div>
+      <button class="close-btn" onclick="closeModal('modalPeriodic')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">업무명 *</label>
+      <input class="form-input" id="pName" placeholder="업무명을 입력하세요">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">주기 유형 *</label>
+      <div class="opt-group" id="pCycleType">
+        <button class="opt-btn" onclick="selectCycle(this,'일일')">일일</button>
+        <button class="opt-btn" onclick="selectCycle(this,'주간')">주간</button>
+        <button class="opt-btn" onclick="selectCycle(this,'월간')">월간</button>
+        <button class="opt-btn" onclick="selectCycle(this,'분기')">분기</button>
+        <button class="opt-btn" onclick="selectCycle(this,'연간')">연간</button>
+      </div>
+    </div>
+
+    <div id="pCycleFields"></div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <textarea class="form-textarea" id="pMemo" placeholder="메모 (선택)"></textarea>
+    </div>
+
+    <input type="hidden" id="pEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="pDeleteBtn" style="display:none" onclick="deletePeriodicTask()">삭제</button>
+      <button class="btn btn-primary" onclick="savePeriodicTask()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: ONE-TIME FORM -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="modalOneTime">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="oneTimeModalTitle">일회성업무 추가</div>
+      <button class="close-btn" onclick="closeModal('modalOneTime')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">업무명 *</label>
+      <input class="form-input" id="otName" placeholder="업무명을 입력하세요">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">구분 *
+        <button onclick="openAddCategory()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;margin-left:8px;font-family:'Noto Sans KR',sans-serif">+ 항목 추가</button>
+      </label>
+      <div class="opt-group" id="otCategoryGroup"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">중요도 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','A')">A</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','B')">B</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','C')">C</button>
+      </div>
+      <input type="hidden" id="otImp">
+      <div class="form-hint">
+        🔴 <b>A</b>: 업무 성과에 치명적 영향 / 즉시 처리 필요<br>
+        🟠 <b>B</b>: 중요하나 단기 지연 허용 / 계획적 처리<br>
+        🟢 <b>C</b>: 필요하지만 우선순위 낮음 / 여유 처리
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">긴급도 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','A')">A</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','B')">B</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','C')">C</button>
+      </div>
+      <input type="hidden" id="otUrg">
+      <div class="form-hint">
+        🔴 <b>A</b>: 오늘~내일 처리 필수 / 즉각 대응<br>
+        🟠 <b>B</b>: 이번주 내 처리 / 일정 수립 필요<br>
+        🟢 <b>C</b>: 이번달 내 처리 / 여유 대응 가능
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">접수일</label>
+        <input type="date" class="form-input" id="otReceived">
+      </div>
+      <div class="form-group">
+        <label class="form-label">완료 요청일</label>
+        <input type="date" class="form-input" id="otRequested">
+      </div>
+      <div class="form-group">
+        <label class="form-label">완료 예정일</label>
+        <input type="date" class="form-input" id="otPlanned">
+      </div>
+      <div class="form-group">
+        <label class="form-label">현황</label>
+        <select class="form-select" id="otStatus">
+          <option value="미완료">미완료</option>
+          <option value="미수행">미수행</option>
+          <option value="검토중">검토중</option>
+          <option value="회신대기중">회신대기중</option>
+          <option value="완료">완료</option>
+          <option value="보류">보류</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">진행사항</label>
+      <div id="otProgressList"></div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:4px;font-size:12px" onclick="addProgressItem()">＋ 진행사항 추가</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <textarea class="form-textarea" id="otMemo" placeholder="메모 (선택)"></textarea>
+    </div>
+
+    <input type="hidden" id="otEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="otDeleteBtn" style="display:none" onclick="deleteOneTimeTask()">삭제</button>
+      <button class="btn btn-primary" onclick="saveOneTimeTask()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ADD CATEGORY -->
+<div class="modal-overlay" id="modalCategory">
+  <div class="modal" style="padding-bottom:20px">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title">구분 항목 추가</div>
+      <button class="close-btn" onclick="closeModal('modalCategory')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">새 항목명</label>
+      <input class="form-input" id="newCategoryInput" placeholder="항목명 입력">
+    </div>
+    <button class="btn btn-primary" onclick="saveNewCategory()">추가</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIGURATION — 여기에 본인의 Firebase 설정을 입력하세요
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDSRF1QH-iy_18D3PhBEjWAtH1GppYL4VA",
+  authDomain: "worklist-2b1c4.firebaseapp.com",
+  projectId: "worklist-2b1c4",
+  storageBucket: "worklist-2b1c4.firebasestorage.app",
+  messagingSenderId: "438381091631",
+  appId: "1:438381091631:web:25eeef68b86a0d84175fda"
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let db = null;
+let state = {
+  currentDate: new Date(),
+  currentPage: 'pagMain',
+  periodicTasks: [],
+  oneTimeTasks: [],
+  completions: [],
+  categories: ['시설','설비','안전','교육','소모품','CS','개발과제','표준형과제','주문형과제','자격/인증','관리','규정','자기계발'],
+  currentCycle: '',
+  currentOtCategory: '',
+  otProgressItems: [],
+  calDate: new Date(),
+  calSelectedDate: null,
+  completedTab: 'periodic',
+  oneTimeFilter: 'all',
+  holidays: [], // [{date:'YYYY-MM-DD', name:'...'}]
+  dateOverrides: [], // [{taskId, originalDate, movedDate}] - 주기업무 일자 이동 기록
+};
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+function initFirebase() {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    loadAll();
+    document.getElementById('fbNotice').innerHTML = '';
+  } catch(e) {
+    document.getElementById('fbNotice').innerHTML =
+      '<div class="fb-notice">⚠️ Firebase 미설정: <code>firebaseConfig</code>에 본인의 Firebase 프로젝트 정보를 입력하세요. 현재는 로컬 임시 데이터로 동작합니다.</div>';
+    loadLocalData();
+  }
+}
+
+// ============================================================
+// LOCAL STORAGE FALLBACK
+// ============================================================
+function loadLocalData() {
+  try {
+    state.periodicTasks = JSON.parse(localStorage.getItem('periodicTasks') || '[]');
+    state.oneTimeTasks = JSON.parse(localStorage.getItem('oneTimeTasks') || '[]');
+    state.completions = JSON.parse(localStorage.getItem('completions') || '[]');
+    const cats = JSON.parse(localStorage.getItem('categories') || 'null');
+    if (cats) state.categories = cats;
+    const hols = JSON.parse(localStorage.getItem('holidays') || 'null');
+    if (hols) state.holidays = hols;
+    const overrides = JSON.parse(localStorage.getItem('dateOverrides') || 'null');
+    if (overrides) state.dateOverrides = overrides;
+  } catch(e){}
+  renderAll();
+}
+
+function saveLocal() {
+  try {
+    localStorage.setItem('periodicTasks', JSON.stringify(state.periodicTasks));
+    localStorage.setItem('oneTimeTasks', JSON.stringify(state.oneTimeTasks));
+    localStorage.setItem('completions', JSON.stringify(state.completions));
+    localStorage.setItem('categories', JSON.stringify(state.categories));
+    localStorage.setItem('holidays', JSON.stringify(state.holidays));
+    localStorage.setItem('dateOverrides', JSON.stringify(state.dateOverrides));
+  } catch(e){}
+}
+
+// ============================================================
+// FIREBASE LOAD
+// ============================================================
+async function loadAll() {
+  try {
+    const [ptSnap, otSnap, compSnap, catSnap, holSnap, ovSnap] = await Promise.all([
+      db.collection('periodicTasks').get(),
+      db.collection('oneTimeTasks').get(),
+      db.collection('completions').get(),
+      db.collection('settings').doc('categories').get(),
+      db.collection('settings').doc('holidays').get(),
+      db.collection('dateOverrides').get()
+    ]);
+    state.periodicTasks = ptSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.oneTimeTasks = otSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.completions = compSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.dateOverrides = ovSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    if (catSnap.exists && catSnap.data().list) state.categories = catSnap.data().list;
+    if (holSnap.exists && holSnap.data().list) state.holidays = holSnap.data().list;
+    renderAll();
+  } catch(e) {
+    console.error('Firebase load error:', e);
+    loadLocalData();
+  }
+}
+
+async function fbSave(collection, data, id) {
+  if (!db) { saveLocal(); return id || Date.now().toString(); }
+  try {
+    if (id) {
+      await db.collection(collection).doc(id).set(data, {merge: true});
+      return id;
+    } else {
+      const ref = await db.collection(collection).add(data);
+      return ref.id;
+    }
+  } catch(e) { saveLocal(); return id || Date.now().toString(); }
+}
+
+async function fbDelete(collection, id) {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection(collection).doc(id).delete(); }
+  catch(e) { saveLocal(); }
+}
+
+async function fbSaveCategories() {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection('settings').doc('categories').set({list: state.categories}); }
+  catch(e) { saveLocal(); }
+}
+
+// ============================================================
+// DATE UTILITIES
+// ============================================================
+const KOR_DAYS = ['일','월','화','수','목','금','토'];
+const WEEK_NAMES = ['첫째주','둘째주','셋째주','넷째주'];
+const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+function fmtDate(d) {
+  const y = d.getFullYear(), mo = d.getMonth(), dd = d.getDate(), dow = d.getDay();
+  const dayKor = KOR_DAYS[dow];
+  return `${y}년 ${mo+1}월 ${dd}일 (${dayKor})`;
+}
+
+function fmtDateShort(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function parseDateStr(s) {
+  if (!s) return null;
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function getNthWeekdayOfMonth(date) {
+  return Math.ceil(date.getDate() / 7);
+}
+
+function getMonthInQuarter(month) { // 0-based
+  return (month % 3) + 1; // 1, 2, or 3
+}
+
+function daysBetween(d1, d2) {
+  return Math.floor((d2 - d1) / 86400000);
+}
+
+function isPeriodicDueOnDate(task, date) {
+  const dow = date.getDay();
+  const dateStr = fmtDateShort(date);
+
+  // 날짜 이동 Override 확인: 이 날짜로 이동된 업무 → 표시
+  const movedHere = state.dateOverrides.find(o => o.taskId === task.id && o.movedDate === dateStr);
+  if (movedHere) return true;
+
+  // 날짜 이동 Override 확인: 원래 날짜에서 다른 날로 이동된 경우 → 원래 날짜에서 숨김
+  const movedAway = state.dateOverrides.find(o => o.taskId === task.id && o.originalDate === dateStr);
+  if (movedAway) return false;
+
+  switch(task.cycleType) {
+    case '일일':
+      // 일일: 주말/휴일 제외 평일만 (holiday shift 없음 - 일일제외 조건)
+      return !isHoliday(date);
+
+    case '주간': {
+      // 선택된 각 요일에 대해 이번 주 자연 날짜 계산 후 휴일이면 다음 근무일로 이동
+      for (const dayKor of (task.weekDays || [])) {
+        const targetDow = KOR_DAY_TO_DOW[dayKor];
+        if (!targetDow) continue;
+        const naturalDate = getWeekdayInSameWeek(date, targetDow);
+        const effectiveDate = getEffectiveDate(naturalDate);
+        if (fmtDateShort(effectiveDate) === dateStr) return true;
+      }
+      return false;
+    }
+
+    case '월간': {
+      // 해당 월의 n번째 특정 요일 → 휴일이면 다음 근무일
+      const targetDow = KOR_DAY_TO_DOW[task.monthDay];
+      const nth = WEEK_NAMES.indexOf(task.monthWeek) + 1;
+      if (!targetDow || nth < 1) return false;
+      const naturalDate = getNthWeekdayDate(date.getFullYear(), date.getMonth(), targetDow, nth);
+      if (!naturalDate) return false;
+      const effectiveDate = getEffectiveDate(naturalDate);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    case '분기': {
+      // 분기 내 n월차의 n번째 주: 해당 주의 첫 번째 근무일에 표시
+      const qm = parseInt((task.quarterMonth||'').replace('월차',''));
+      const qw = WEEK_NAMES.indexOf(task.quarterWeek) + 1;
+      if (!qm || qw < 1) return false;
+      const miq = getMonthInQuarter(date.getMonth());
+      if (miq !== qm) return false;
+      // 해당 월의 qw번째 주 월요일 구하기
+      const weekMonday = getNthWeekStart(date.getFullYear(), date.getMonth(), qw);
+      if (!weekMonday) return false;
+      const effectiveDate = getEffectiveDate(weekMonday);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    case '연간': {
+      // 특정 월의 n번째 주: 해당 주의 첫 번째 근무일에 표시
+      const ym = parseInt((task.yearMonth||'').replace('월',''));
+      const yw = WEEK_NAMES.indexOf(task.yearWeek) + 1;
+      if (!ym || yw < 1) return false;
+      if (date.getMonth() + 1 !== ym) return false;
+      const weekMonday = getNthWeekStart(date.getFullYear(), date.getMonth(), yw);
+      if (!weekMonday) return false;
+      const effectiveDate = getEffectiveDate(weekMonday);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    default: return false;
+  }
+}
+
+// 해당 월의 n번째 주 월요일 구하기 (월의 1일 기준 7일 단위)
+function getNthWeekStart(year, month, nth) {
+  // 1번째 주: 1~7일, 2번째 주: 8~14일, ...
+  const startDay = (nth - 1) * 7 + 1;
+  if (startDay > new Date(year, month + 1, 0).getDate()) return null;
+  const d = new Date(year, month, startDay);
+  // 해당 주의 월요일 찾기
+  return getISOWeekMonday(d);
+}
+
+function getNextOccurrence(task, fromDate) {
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 90; i++) {
+    if (isPeriodicDueOnDate(task, d)) return new Date(d);
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function isCompletedForDate(taskId, dateStr) {
+  return state.completions.some(c => c.taskId === taskId && c.date === dateStr);
+}
+
+function getCompletionForDate(taskId, dateStr) {
+  return state.completions.find(c => c.taskId === taskId && c.date === dateStr);
+}
+
+// ============================================================
+// HOLIDAY UTILITIES
+// ============================================================
+function isHoliday(date) {
+  const dow = date.getDay();
+  if (dow === 0 || dow === 6) return true; // 주말
+  const dateStr = fmtDateShort(date);
+  return state.holidays.some(h => (typeof h === 'string' ? h : h.date) === dateStr);
+}
+
+function getNextWorkday(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 1);
+  let safety = 0;
+  while (isHoliday(d) && safety++ < 14) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function getEffectiveDate(naturalDate) {
+  if (isHoliday(naturalDate)) return getNextWorkday(naturalDate);
+  return new Date(naturalDate);
+}
+
+// ISO 주의 월요일 구하기
+function getISOWeekMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// 해당 주의 특정 요일 날짜 구하기 (targetDow: 1=Mon..5=Fri)
+function getWeekdayInSameWeek(date, targetDow) {
+  const monday = getISOWeekMonday(date);
+  const result = new Date(monday);
+  result.setDate(monday.getDate() + (targetDow - 1));
+  return result;
+}
+
+// 해당 월의 n번째 특정 요일 날짜 구하기
+function getNthWeekdayDate(year, month, targetDow, nth) {
+  // targetDow: 0=Sun,1=Mon,...
+  const d = new Date(year, month, 1);
+  let count = 0;
+  while (true) {
+    if (d.getDay() === targetDow) {
+      count++;
+      if (count === nth) return new Date(d);
+    }
+    d.setDate(d.getDate() + 1);
+    if (d.getMonth() !== month) break;
+  }
+  return null;
+}
+
+const KOR_DAY_TO_DOW = {'월':1,'화':2,'수':3,'목':4,'금':5};
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  updateDateDisplay();
+  renderTodayTasks();
+  renderPeriodicList();
+  renderOneTimeList();
+  renderCompleted();
+}
+
+function updateDateDisplay() {
+  document.getElementById('dateDisplay').textContent = fmtDate(state.currentDate);
+}
+
+function changeDate(delta) {
+  state.currentDate = new Date(state.currentDate);
+  state.currentDate.setDate(state.currentDate.getDate() + delta);
+  updateDateDisplay();
+  renderTodayTasks();
+}
+
+function goToday() {
+  state.currentDate = new Date();
+  updateDateDisplay();
+  renderTodayTasks();
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  state.currentPage = id;
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
+// TODAY TASKS RENDER
+// ============================================================
+function renderTodayTasks() {
+  const dateStr = fmtDateShort(state.currentDate);
+  const today = state.currentDate;
+  const now = new Date(); now.setHours(0,0,0,0);
+  const todayTime = today.getTime();
+
+  let tasks = [];
+
+  // Periodic tasks due today
+  for (const t of state.periodicTasks) {
+    if (isPeriodicDueOnDate(t, today)) {
+      const done = isCompletedForDate(t.id, dateStr);
+      const comp = getCompletionForDate(t.id, dateStr);
+      tasks.push({
+        id: t.id, name: t.name, type: 'periodic',
+        cycleType: t.cycleType, memo: t.memo,
+        status: comp ? comp.status : '미완료',
+        isOverdue: false, isPeriodicSoon: false,
+        imp: 'C', urg: 'C', requestedDate: null, plannedDate: null,
+        _raw: t
+      });
+    }
+  }
+
+  // One-time tasks (not completed)
+  for (const t of state.oneTimeTasks) {
+    if (t.status === '완료') continue;
+    const reqDate = parseDateStr(t.requestedDate);
+    const planDate = parseDateStr(t.plannedDate);
+    const dueDate = reqDate || planDate;
+    if (!dueDate) continue;
+
+    const isOverdue = dueDate < now;
+    const daysLeft = daysBetween(now, dueDate);
+
+    tasks.push({
+      id: t.id, name: t.name, type: 'oneTime',
+      status: t.status, category: t.category,
+      imp: t.importance || 'C', urg: t.urgency || 'C',
+      requestedDate: t.requestedDate, plannedDate: t.plannedDate,
+      daysLeft, isOverdue, isPeriodicSoon: false, _raw: t
+    });
+  }
+
+  // Monthly/quarterly/yearly tasks starting within 7 days
+  for (const t of state.periodicTasks) {
+    if (!['월간','분기','연간'].includes(t.cycleType)) continue;
+    if (isPeriodicDueOnDate(t, today)) continue; // already in list
+    const next = getNextOccurrence(t, today);
+    if (next && daysBetween(today, next) <= 7) {
+      const done = isCompletedForDate(t.id, fmtDateShort(next));
+      tasks.push({
+        id: t.id + '_soon', name: t.name, type: 'periodic_soon',
+        cycleType: t.cycleType, memo: t.memo,
+        status: done ? '완료' : '예정',
+        isOverdue: false, isPeriodicSoon: true,
+        imp: 'C', urg: 'C', nextDate: next,
+        _raw: t
+      });
+    }
+  }
+
+  // Sort:
+  // 1. Overdue (past deadline)
+  // 2. Periodic daily/weekly
+  // 3. Periodic soon (within 7 days)
+  // 4. By importance+urgency
+  // 5. By deadline (closest first)
+  tasks.sort((a, b) => {
+    const grpA = getSortGroup(a);
+    const grpB = getSortGroup(b);
+    if (grpA !== grpB) return grpA - grpB;
+    const impScore = (x) => ({'A':0,'B':1,'C':2}[x] ?? 2);
+    const scoreA = impScore(a.imp) * 3 + impScore(a.urg);
+    const scoreB = impScore(b.imp) * 3 + impScore(b.urg);
+    if (scoreA !== scoreB) return scoreA - scoreB;
+    const dA = a.daysLeft ?? 999;
+    const dB = b.daysLeft ?? 999;
+    return dA - dB;
+  });
+
+  const cont = document.getElementById('todayTaskContainer');
+  if (tasks.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">🎉</div><div class="empty-txt">오늘 예정된 업무가 없습니다</div></div>';
+    return;
+  }
+
+  let html = '';
+  let lastGroup = -1;
+  const groupLabels = {0:'⚠️ 기한 초과',1:'🔄 주기업무 (일일·주간)',2:'📅 주기업무 (월간·분기·연간) — 1주일 이내',3:'🔥 중요·긴급 우선',4:'⏰ 완료기한 임박'};
+
+  for (const task of tasks) {
+    const grp = getSortGroup(task);
+    if (grp !== lastGroup) {
+      if (grp in groupLabels) html += `<div class="section-label">${groupLabels[grp]}</div>`;
+      lastGroup = grp;
+    }
+    html += renderTaskCard(task, dateStr);
+  }
+
+  cont.innerHTML = `<div class="task-list">${html}</div>`;
+}
+
+function getSortGroup(task) {
+  if (task.isOverdue) return 0;
+  if (task.type === 'periodic' && ['일일','주간'].includes(task.cycleType)) return 1;
+  if (task.isPeriodicSoon) return 2;
+  const imp = task.imp || 'C', urg = task.urg || 'C';
+  if ((imp === 'A' || imp === 'B') && (urg === 'A' || urg === 'B')) return 3;
+  return 4;
+}
+
+function renderTaskCard(task, dateStr) {
+  const done = task.status === '완료' || task.status === '미수행';
+  let borderClass = 'tl-normal';
+  if (task.isOverdue) borderClass = 'tl-overdue';
+  else if (task.type === 'periodic' || task.type === 'periodic_soon') borderClass = 'tl-periodic';
+  else if (task.imp === 'A' || task.urg === 'A') borderClass = 'tl-warn';
+
+  let badges = '';
+  if (task.type === 'periodic' || task.type === 'periodic_soon') {
+    badges += `<span class="tag tag-blue">${task.cycleType}</span>`;
+    if (task.isPeriodicSoon && task.nextDate) {
+      badges += `<span class="tag tag-accent">${fmtDateShort(task.nextDate)} 예정</span>`;
+    }
+  } else {
+    if (task.category) badges += `<span class="tag tag-gray">${task.category}</span>`;
+    if (task.imp) badges += `<span class="tag ${task.imp==='A'?'tag-red':task.imp==='B'?'tag-orange':'tag-green'}">중요${task.imp}</span>`;
+    if (task.urg) badges += `<span class="tag ${task.urg==='A'?'tag-red':task.urg==='B'?'tag-orange':'tag-green'}">긴급${task.urg}</span>`;
+    if (task.isOverdue) badges += `<span class="tag tag-red">D+${Math.abs(task.daysLeft)}일 초과</span>`;
+    else if (task.daysLeft <= 3) badges += `<span class="tag tag-orange">D-${task.daysLeft}</span>`;
+    else if (task.daysLeft !== undefined) badges += `<span class="tag tag-gray">D-${task.daysLeft}</span>`;
+  }
+
+  const statusBadge = task.status ? `<span class="sbadge s-${task.status}">${task.status}</span>` : '';
+  const cardClass = done ? 'tl-completed' : '';
+
+  const tid = `card-${task.id.replace(/[^a-z0-9]/gi,'_')}`;
+  return `
+    <div class="task-card ${borderClass} ${cardClass}" id="${tid}"
+      data-id="${task.id}" data-type="${task.type}" data-date="${dateStr}">
+      <div class="task-card-inner">
+        <div class="task-card-body">
+          <div class="task-card-content" onclick="onCardClick('${task.id}','${task.type}')">
+            <div class="task-name">${task.name}</div>
+            <div class="task-meta">${badges}${statusBadge}</div>
+          </div>
+          <button class="status-change-btn" onclick="openStatusFromCard('${task.id}','${task.type}','${dateStr}')">⚡<br>현황</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function onCardClick(id, type) {
+  if (type === 'periodic' || type === 'periodic_soon') {
+    const task = state.periodicTasks.find(t => t.id === id || t.id + '_soon' === id);
+    if (task) openPeriodicForm(task);
+  } else {
+    const task = state.oneTimeTasks.find(t => t.id === id);
+    if (task) openOneTimeForm(task);
+  }
+}
+
+function openStatusFromCard(id, type, dateStr) {
+  const realId = id.replace('_soon','');
+  state._statusTarget = {id: realId, type, dateStr};
+  // 주기업무는 날짜 지정 가능
+  const dateRow = document.getElementById('statusDateRow');
+  const dateInput = document.getElementById('statusDateInput');
+  if (type === 'periodic' || type === 'periodic_soon') {
+    dateRow.style.display = 'block';
+    dateInput.value = dateStr;
+  } else {
+    dateRow.style.display = 'none';
+  }
+  document.getElementById('statusOverlay').classList.add('active');
+}
+
+async function setStatus(status) {
+  const {id, type} = state._statusTarget || {};
+  if (!id) return;
+
+  // 날짜: 주기업무는 날짜 지정 입력값 우선
+  const dateRow = document.getElementById('statusDateRow');
+  const dateInput = document.getElementById('statusDateInput');
+  const originalDate = state._statusTarget.dateStr;
+  const movedDate = (dateRow.style.display !== 'none' && dateInput.value)
+    ? dateInput.value
+    : originalDate;
+
+  closeStatusOverlay();
+
+  if (type === 'periodic' || type === 'periodic_soon') {
+
+    // ── 날짜가 변경된 경우: dateOverride 처리 ──
+    if (movedDate !== originalDate) {
+      // 기존 override 중 같은 originalDate 것 삭제
+      const existingOv = state.dateOverrides.find(o => o.taskId === id && o.originalDate === originalDate);
+      if (existingOv) {
+        await fbDelete('dateOverrides', existingOv.id);
+        state.dateOverrides = state.dateOverrides.filter(o => o.id !== existingOv.id);
+      }
+      // 새 override 생성
+      const ovData = {taskId: id, originalDate, movedDate};
+      const ovId = await fbSave('dateOverrides', ovData, null);
+      state.dateOverrides.push({id: ovId, ...ovData});
+
+      // 기존 originalDate의 completion 기록 삭제
+      const oldComp = state.completions.find(c => c.taskId === id && c.date === originalDate);
+      if (oldComp) {
+        await fbDelete('completions', oldComp.id);
+        state.completions = state.completions.filter(c => c.id !== oldComp.id);
+      }
+    }
+
+    // ── 이동된 날짜(movedDate)에 현황 저장 ──
+    const exists = state.completions.find(c => c.taskId === id && c.date === movedDate);
+    if (status === '미완료') {
+      // 기록 삭제 (override도 함께 제거)
+      if (exists) {
+        await fbDelete('completions', exists.id);
+        state.completions = state.completions.filter(c => c.id !== exists.id);
+      }
+      if (movedDate !== originalDate) {
+        const ov = state.dateOverrides.find(o => o.taskId === id && o.movedDate === movedDate);
+        if (ov) {
+          await fbDelete('dateOverrides', ov.id);
+          state.dateOverrides = state.dateOverrides.filter(o => o.id !== ov.id);
+        }
+      }
+    } else {
+      const comp = {taskId: id, taskType: 'periodic', date: movedDate, status};
+      if (exists) {
+        exists.status = status;
+        await fbSave('completions', comp, exists.id);
+      } else {
+        const newId = await fbSave('completions', comp, null);
+        state.completions.push({id: newId, ...comp});
+      }
+    }
+
+  } else {
+    // 일회성업무
+    const task = state.oneTimeTasks.find(t => t.id === id);
+    if (task) {
+      task.status = status;
+      if (status === '완료') task.completedDate = movedDate;
+      await fbSave('oneTimeTasks', task, id);
+    }
+  }
+
+  saveLocal();
+  renderTodayTasks();
+  const msg = movedDate !== originalDate
+    ? `[${status}] — ${originalDate} → ${movedDate} 로 이동되었습니다`
+    : `현황이 [${status}]로 변경되었습니다`;
+  showToast(msg);
+}
+
+function closeStatusOverlay() {
+  document.getElementById('statusOverlay').classList.remove('active');
+}
+
+// ============================================================
+// PERIODIC LIST
+// ============================================================
+function renderPeriodicList() {
+  const cont = document.getElementById('periodicList');
+  if (state.periodicTasks.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">🔄</div><div class="empty-txt">등록된 주기업무가 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+  cont.innerHTML = state.periodicTasks.map(t => {
+    const criteriaLabel = getCriteriaLabel(t);
+    return `
+      <div class="list-item" onclick='openPeriodicForm(${JSON.stringify(t)})'>
+        <div class="li-name">${t.name}</div>
+        <div class="li-meta">
+          <span class="tag tag-blue">${t.cycleType}</span>
+          ${criteriaLabel ? `<span class="tag tag-gray">${criteriaLabel}</span>` : ''}
+          ${t.memo ? `<span class="tag tag-gray" style="max-width:120px;overflow:hidden;text-overflow:ellipsis">${t.memo}</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function getCriteriaLabel(t) {
+  switch(t.cycleType) {
+    case '일일': return '매 평일';
+    case '주간': return (t.weekDays||[]).join(', ');
+    case '월간': return `${t.monthWeek||''} ${t.monthDay||''}`;
+    case '분기': return `${t.quarterMonth||''} ${t.quarterWeek||''}`;
+    case '연간': return `${t.yearMonth||''} ${t.yearWeek||''}`;
+    default: return '';
+  }
+}
+
+// ============================================================
+// PERIODIC FORM
+// ============================================================
+function openPeriodicForm(task) {
+  state.currentCycle = task?.cycleType || '';
+  document.getElementById('pName').value = task?.name || '';
+  document.getElementById('pMemo').value = task?.memo || '';
+  document.getElementById('pEditId').value = task?.id || '';
+  document.getElementById('pDeleteBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('periodicModalTitle').textContent = task ? '주기업무 수정' : '주기업무 추가';
+
+  // Reset cycle buttons
+  document.querySelectorAll('#pCycleType .opt-btn').forEach(b => b.classList.remove('sel'));
+  if (task?.cycleType) {
+    document.querySelectorAll('#pCycleType .opt-btn').forEach(b => {
+      if (b.textContent === task.cycleType) b.classList.add('sel');
+    });
+    renderCycleFields(task.cycleType, task);
+  } else {
+    document.getElementById('pCycleFields').innerHTML = '';
+  }
+  openModal('modalPeriodic');
+}
+
+function selectCycle(btn, cycle) {
+  document.querySelectorAll('#pCycleType .opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  state.currentCycle = cycle;
+  renderCycleFields(cycle, null);
+}
+
+function renderCycleFields(cycle, task) {
+  const el = document.getElementById('pCycleFields');
+  if (cycle === '일일') { el.innerHTML = '<div class="form-note" style="margin-bottom:12px;color:var(--text2)">💡 매 평일(월~금) 반복됩니다.</div>'; return; }
+  if (cycle === '주간') {
+    const days = ['월','화','수','목','금'];
+    const sel = task?.weekDays || [];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">수행 요일 (복수 선택 가능)</label>
+      <div class="opt-group" id="pWeekDays">
+        ${days.map(d => `<button class="opt-btn ${sel.includes(d)?'sel':''}" onclick="toggleWeekDay(this,'${d}')">${d}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '월간') {
+    const weeks = WEEK_NAMES, days2 = ['월','화','수','목','금'];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pMonthWeek">
+        ${weeks.map(w => `<button class="opt-btn ${task?.monthWeek===w?'sel':''}" onclick="pickOne(this,'pMonthWeek','${w}')">${w}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">요일</label>
+      <div class="opt-group" id="pMonthDay">
+        ${days2.map(d => `<button class="opt-btn ${task?.monthDay===d?'sel':''}" onclick="pickOne(this,'pMonthDay','${d}')">${d}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '분기') {
+    const qms = ['1월차','2월차','3월차'];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">분기 내 월</label>
+      <div class="opt-group" id="pQMonth">
+        ${qms.map(m => `<button class="opt-btn ${task?.quarterMonth===m?'sel':''}" onclick="pickOne(this,'pQMonth','${m}')">${m}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pQWeek">
+        ${WEEK_NAMES.map(w => `<button class="opt-btn ${task?.quarterWeek===w?'sel':''}" onclick="pickOne(this,'pQWeek','${w}')">${w}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '연간') {
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">월</label>
+      <div class="opt-group" id="pYMonth" style="flex-wrap:wrap">
+        ${MONTH_NAMES.map(m => `<button class="opt-btn ${task?.yearMonth===m?'sel':''}" onclick="pickOne(this,'pYMonth','${m}')">${m}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pYWeek">
+        ${WEEK_NAMES.map(w => `<button class="opt-btn ${task?.yearWeek===w?'sel':''}" onclick="pickOne(this,'pYWeek','${w}')">${w}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+}
+
+function toggleWeekDay(btn, day) {
+  btn.classList.toggle('sel');
+}
+
+function pickOne(btn, groupId, val) {
+  document.querySelectorAll(`#${groupId} .opt-btn`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+async function savePeriodicTask() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { showToast('업무명을 입력하세요'); return; }
+  if (!state.currentCycle) { showToast('주기 유형을 선택하세요'); return; }
+
+  const task = { name, cycleType: state.currentCycle, memo: document.getElementById('pMemo').value.trim() };
+
+  if (state.currentCycle === '주간') {
+    task.weekDays = [...document.querySelectorAll('#pWeekDays .opt-btn.sel')].map(b => b.textContent);
+    if (!task.weekDays.length) { showToast('요일을 선택하세요'); return; }
+  }
+  if (state.currentCycle === '월간') {
+    task.monthWeek = document.querySelector('#pMonthWeek .opt-btn.sel')?.textContent || '';
+    task.monthDay = document.querySelector('#pMonthDay .opt-btn.sel')?.textContent || '';
+    if (!task.monthWeek || !task.monthDay) { showToast('주차와 요일을 선택하세요'); return; }
+  }
+  if (state.currentCycle === '분기') {
+    task.quarterMonth = document.querySelector('#pQMonth .opt-btn.sel')?.textContent || '';
+    task.quarterWeek = document.querySelector('#pQWeek .opt-btn.sel')?.textContent || '';
+    if (!task.quarterMonth || !task.quarterWeek) { showToast('월차와 주차를 선택하세요'); return; }
+  }
+  if (state.currentCycle === '연간') {
+    task.yearMonth = document.querySelector('#pYMonth .opt-btn.sel')?.textContent || '';
+    task.yearWeek = document.querySelector('#pYWeek .opt-btn.sel')?.textContent || '';
+    if (!task.yearMonth || !task.yearWeek) { showToast('월과 주차를 선택하세요'); return; }
+  }
+
+  const editId = document.getElementById('pEditId').value;
+  if (editId) {
+    const idx = state.periodicTasks.findIndex(t => t.id === editId);
+    if (idx >= 0) { state.periodicTasks[idx] = {id: editId, ...task}; }
+    await fbSave('periodicTasks', task, editId);
+    showToast('주기업무가 수정되었습니다');
+  } else {
+    task.createdAt = new Date().toISOString();
+    const newId = await fbSave('periodicTasks', task, null);
+    state.periodicTasks.push({id: newId, ...task});
+    showToast('주기업무가 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalPeriodic');
+  renderAll();
+}
+
+async function deletePeriodicTask() {
+  const id = document.getElementById('pEditId').value;
+  if (!id) return;
+  if (!confirm('이 주기업무를 삭제하시겠습니까?')) return;
+  await fbDelete('periodicTasks', id);
+  state.periodicTasks = state.periodicTasks.filter(t => t.id !== id);
+  saveLocal();
+  closeModal('modalPeriodic');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ============================================================
+// ONE-TIME LIST
+// ============================================================
+function renderOneTimeList() {
+  // Render filter chips
+  const filterRow = document.getElementById('oneTimeFilterRow');
+  const allCats = ['all', ...state.categories];
+  filterRow.innerHTML = allCats.map(c =>
+    `<button class="chip ${state.oneTimeFilter===c?'active':''}" onclick="setOneTimeFilter('${c}')">${c==='all'?'전체':c}</button>`
+  ).join('');
+
+  let tasks = state.oneTimeTasks.filter(t => t.status !== '완료' && t.status !== '미수행');
+  if (state.oneTimeFilter !== 'all') tasks = tasks.filter(t => t.category === state.oneTimeFilter);
+  tasks.sort((a,b) => {
+    const dateA = a.requestedDate || a.plannedDate || '9999';
+    const dateB = b.requestedDate || b.plannedDate || '9999';
+    return dateA.localeCompare(dateB);
+  });
+
+  const cont = document.getElementById('oneTimeList');
+  if (tasks.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">📌</div><div class="empty-txt">등록된 일회성업무가 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+  cont.innerHTML = tasks.map(t => `
+    <div class="list-item" onclick='openOneTimeForm(${JSON.stringify(t).replace(/'/g,"&#39;")})'>
+      <div class="li-name">${t.name}</div>
+      <div class="li-meta">
+        ${t.category ? `<span class="tag tag-gray">${t.category}</span>` : ''}
+        ${t.importance ? `<span class="tag ${t.importance==='A'?'tag-red':t.importance==='B'?'tag-orange':'tag-green'}">중요${t.importance}</span>` : ''}
+        ${t.urgency ? `<span class="tag ${t.urgency==='A'?'tag-red':t.urgency==='B'?'tag-orange':'tag-green'}">긴급${t.urgency}</span>` : ''}
+        <span class="sbadge s-${t.status||'미수행'}">${t.status||'미수행'}</span>
+        ${t.requestedDate ? `<span class="tag tag-gray">${t.requestedDate}</span>` : ''}
+      </div>
+    </div>`).join('');
+}
+
+function setOneTimeFilter(cat) {
+  state.oneTimeFilter = cat;
+  renderOneTimeList();
+}
+
+// ============================================================
+// ONE-TIME FORM
+// ============================================================
+function openOneTimeForm(task) {
+  document.getElementById('otName').value = task?.name || '';
+  document.getElementById('otImp').value = task?.importance || '';
+  document.getElementById('otUrg').value = task?.urgency || '';
+  document.getElementById('otReceived').value = task?.receivedDate || '';
+  document.getElementById('otRequested').value = task?.requestedDate || '';
+  document.getElementById('otPlanned').value = task?.plannedDate || '';
+  document.getElementById('otStatus').value = task?.status || '미완료';
+  document.getElementById('otMemo').value = task?.memo || '';
+  document.getElementById('otEditId').value = task?.id || '';
+  document.getElementById('otDeleteBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('oneTimeModalTitle').textContent = task ? '일회성업무 수정' : '일회성업무 추가';
+
+  // Category
+  state.currentOtCategory = task?.category || '';
+  renderOtCategories();
+
+  // Importance/Urgency buttons
+  ['otImp','otUrg'].forEach(fieldId => {
+    const val = document.getElementById(fieldId).value;
+    const group = fieldId === 'otImp' ?
+      document.querySelectorAll('[onclick^="selectOpt(this,\'otImp\'"]') :
+      document.querySelectorAll('[onclick^="selectOpt(this,\'otUrg\'"]');
+    document.querySelectorAll(`[onclick*="'${fieldId}'"]`).forEach(b => {
+      b.classList.toggle('sel', b.textContent === val);
+    });
+  });
+
+  // Progress
+  state.otProgressItems = task?.progress ? JSON.parse(JSON.stringify(task.progress)) : [];
+  renderProgressItems();
+
+  openModal('modalOneTime');
+}
+
+function renderOtCategories() {
+  const group = document.getElementById('otCategoryGroup');
+  group.innerHTML = state.categories.map(c =>
+    `<button class="opt-btn ${state.currentOtCategory===c?'sel':''}" onclick="pickOtCategory(this,'${c}')">${c}</button>`
+  ).join('');
+}
+
+function pickOtCategory(btn, cat) {
+  document.querySelectorAll('#otCategoryGroup .opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  state.currentOtCategory = cat;
+}
+
+function selectOpt(btn, fieldId, val) {
+  document.querySelectorAll(`[onclick*="'${fieldId}'"]`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById(fieldId).value = val;
+}
+
+function renderProgressItems() {
+  const cont = document.getElementById('otProgressList');
+  if (state.otProgressItems.length === 0) { cont.innerHTML = ''; return; }
+  cont.innerHTML = state.otProgressItems.map((item, idx) => `
+    <div class="prog-item">
+      <div class="prog-item-header">
+        <input type="date" class="form-input" style="width:auto;flex:1;margin-right:8px" value="${item.date||''}"
+          onchange="updateProgress(${idx},'date',this.value)">
+        <button class="prog-remove" onclick="removeProgress(${idx})">✕</button>
+      </div>
+      <textarea class="form-textarea" style="min-height:56px" placeholder="진행사항 입력..."
+        onchange="updateProgress(${idx},'text',this.value)">${item.text||''}</textarea>
+    </div>`).join('');
+}
+
+function addProgressItem() {
+  state.otProgressItems.push({text:'', date: fmtDateShort(new Date())});
+  renderProgressItems();
+  // Scroll to bottom of modal
+  const modal = document.querySelector('#modalOneTime .modal');
+  setTimeout(() => modal.scrollTo(0, modal.scrollHeight), 100);
+}
+
+function updateProgress(idx, key, val) {
+  if (state.otProgressItems[idx]) state.otProgressItems[idx][key] = val;
+}
+
+function removeProgress(idx) {
+  state.otProgressItems.splice(idx, 1);
+  renderProgressItems();
+}
+
+function openAddCategory() {
+  document.getElementById('newCategoryInput').value = '';
+  openModal('modalCategory');
+}
+
+async function saveNewCategory() {
+  const val = document.getElementById('newCategoryInput').value.trim();
+  if (!val) { showToast('항목명을 입력하세요'); return; }
+  if (state.categories.includes(val)) { showToast('이미 존재하는 항목입니다'); return; }
+  state.categories.push(val);
+  await fbSaveCategories();
+  saveLocal();
+  closeModal('modalCategory');
+  renderOtCategories();
+  renderOneTimeList();
+  showToast(`'${val}' 항목이 추가되었습니다`);
+}
+
+async function saveOneTimeTask() {
+  const name = document.getElementById('otName').value.trim();
+  if (!name) { showToast('업무명을 입력하세요'); return; }
+
+  // Collect progress from current DOM
+  document.querySelectorAll('#otProgressList .prog-item').forEach((el, idx) => {
+    if (state.otProgressItems[idx]) {
+      state.otProgressItems[idx].date = el.querySelector('input[type=date]').value;
+      state.otProgressItems[idx].text = el.querySelector('textarea').value;
+    }
+  });
+
+  const status = document.getElementById('otStatus').value;
+  const task = {
+    name,
+    category: state.currentOtCategory,
+    importance: document.getElementById('otImp').value,
+    urgency: document.getElementById('otUrg').value,
+    receivedDate: document.getElementById('otReceived').value,
+    requestedDate: document.getElementById('otRequested').value,
+    plannedDate: document.getElementById('otPlanned').value,
+    status,
+    completedDate: status === '완료' ? fmtDateShort(new Date()) : '',
+    progress: state.otProgressItems.filter(p => p.text || p.date),
+    memo: document.getElementById('otMemo').value.trim(),
+  };
+
+  const editId = document.getElementById('otEditId').value;
+  if (editId) {
+    const idx = state.oneTimeTasks.findIndex(t => t.id === editId);
+    if (idx >= 0) state.oneTimeTasks[idx] = {id: editId, ...task};
+    await fbSave('oneTimeTasks', task, editId);
+    showToast('일회성업무가 수정되었습니다');
+  } else {
+    task.createdAt = new Date().toISOString();
+    const newId = await fbSave('oneTimeTasks', task, null);
+    state.oneTimeTasks.push({id: newId, ...task});
+    showToast('일회성업무가 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalOneTime');
+  renderAll();
+}
+
+async function deleteOneTimeTask() {
+  const id = document.getElementById('otEditId').value;
+  if (!id) return;
+  if (!confirm('이 업무를 삭제하시겠습니까?')) return;
+  await fbDelete('oneTimeTasks', id);
+  state.oneTimeTasks = state.oneTimeTasks.filter(t => t.id !== id);
+  saveLocal();
+  closeModal('modalOneTime');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ============================================================
+// COMPLETED LIST
+// ============================================================
+function switchCompletedTab(tab) {
+  state.completedTab = tab;
+  document.getElementById('tabPeriodic').classList.toggle('active', tab === 'periodic');
+  document.getElementById('tabOneTime').classList.toggle('active', tab === 'oneTime');
+  renderCompleted();
+}
+
+function renderCompleted() {
+  const keyword = (document.getElementById('completedSearch')?.value || '').toLowerCase();
+  const fromDate = document.getElementById('completedFrom')?.value || '';
+  const toDate = document.getElementById('completedTo')?.value || '';
+  const cont = document.getElementById('completedList');
+
+  if (state.completedTab === 'periodic') {
+    // Show completions for periodic tasks
+    let comps = state.completions.filter(c => c.taskType === 'periodic');
+    if (fromDate) comps = comps.filter(c => c.date >= fromDate);
+    if (toDate) comps = comps.filter(c => c.date <= toDate);
+    if (keyword) {
+      comps = comps.filter(c => {
+        const task = state.periodicTasks.find(t => t.id === c.taskId);
+        return task && task.name.toLowerCase().includes(keyword);
+      });
+    }
+    comps.sort((a,b) => b.date.localeCompare(a.date));
+    if (comps.length === 0) {
+      cont.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">처리된 주기업무 기록이 없습니다</div></div>';
+      return;
+    }
+    cont.innerHTML = comps.map(c => {
+      const task = state.periodicTasks.find(t => t.id === c.taskId);
+      if (!task) return '';
+      const st = c.status || '완료';
+      return `<div class="list-item">
+        <div class="li-name">${task.name}</div>
+        <div class="li-meta">
+          <span class="tag tag-blue">${task.cycleType}</span>
+          <span class="tag tag-gray">${c.date}</span>
+          <span class="sbadge s-${st}">${st}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    let tasks = state.oneTimeTasks.filter(t => t.status === '완료' || t.status === '미수행');
+    if (fromDate) tasks = tasks.filter(t => (t.completedDate || t.plannedDate || '') >= fromDate);
+    if (toDate) tasks = tasks.filter(t => (t.completedDate || t.plannedDate || '') <= toDate);
+    if (keyword) tasks = tasks.filter(t => t.name.toLowerCase().includes(keyword));
+    tasks.sort((a,b) => (b.completedDate||'').localeCompare(a.completedDate||''));
+    if (tasks.length === 0) {
+      cont.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">처리된 일회성업무가 없습니다</div></div>';
+      return;
+    }
+    cont.innerHTML = tasks.map(t => `
+      <div class="list-item tl-completed" onclick='openOneTimeForm(${JSON.stringify(t).replace(/'/g,"&#39;")})'>
+        <div class="li-name">${t.name}</div>
+        <div class="li-meta">
+          ${t.category ? `<span class="tag tag-gray">${t.category}</span>` : ''}
+          <span class="sbadge s-${t.status}">${t.status}</span>
+          ${t.completedDate ? `<span class="tag tag-gray">${t.completedDate}</span>` : ''}
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+function openCalendar() {
+  state.calDate = new Date(state.currentDate);
+  state.calSelectedDate = null;
+  renderCalendar();
+  document.getElementById('calOverlay').classList.add('active');
+}
+
+function calPrev() {
+  state.calDate.setMonth(state.calDate.getMonth() - 1);
+  renderCalendar();
+}
+
+function calNext() {
+  state.calDate.setMonth(state.calDate.getMonth() + 1);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const y = state.calDate.getFullYear(), m = state.calDate.getMonth();
+  document.getElementById('calMonthTitle').textContent = `${y}년 ${m+1}월`;
+
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = fmtDateShort(new Date());
+
+  let html = KOR_DAYS.map(d => `<div class="cal-dh">${d}</div>`).join('');
+
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day cal-empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(y, m, d);
+    const dateStr = fmtDateShort(date);
+    const isToday = dateStr === today;
+    const isSel = state.calSelectedDate && fmtDateShort(state.calSelectedDate) === dateStr;
+    const hasTasks = hasTasksOnDate(date);
+    const isHol = isHoliday(date);
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    let dayStyle = '';
+    if (!isToday && isWeekend) dayStyle = 'color:var(--red)';
+    else if (!isToday && isHol) dayStyle = 'color:var(--purple)';
+    html += `<div class="cal-day${isToday?' cal-today':''}${isSel?' cal-selected':''}${hasTasks?' cal-dot':''}"
+      style="${dayStyle}" onclick="selectCalDay(${y},${m},${d})">${d}</div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function hasTasksOnDate(date) {
+  const periodicDue = state.periodicTasks.some(t => isPeriodicDueOnDate(t, date));
+  const dateStr = fmtDateShort(date);
+  const oneTimeDue = state.oneTimeTasks.some(t => t.status !== '완료' &&
+    (t.requestedDate === dateStr || t.plannedDate === dateStr));
+  return periodicDue || oneTimeDue;
+}
+
+function selectCalDay(y, m, d) {
+  state.calSelectedDate = new Date(y, m, d);
+  renderCalendar();
+  renderCalSelectedInfo();
+}
+
+function renderCalSelectedInfo() {
+  if (!state.calSelectedDate) return;
+  const date = state.calSelectedDate;
+  const dateStr = fmtDateShort(date);
+  let tasks = [];
+
+  state.periodicTasks.forEach(t => {
+    if (isPeriodicDueOnDate(t, date)) tasks.push({name: t.name, type: '주기', badge: t.cycleType});
+  });
+  state.oneTimeTasks.forEach(t => {
+    if (t.status !== '완료' && (t.requestedDate === dateStr || t.plannedDate === dateStr)) {
+      tasks.push({name: t.name, type: '일회성', badge: t.status||'미수행'});
+    }
+  });
+
+  const info = document.getElementById('calSelectedInfo');
+  if (tasks.length === 0) {
+    info.innerHTML = `<div class="cal-info-title">${fmtDate(date)}</div><div style="font-size:12px;color:var(--text3)">예정된 업무 없음</div>`;
+    return;
+  }
+  info.innerHTML = `<div class="cal-info-title">${fmtDate(date)} — ${tasks.length}건</div>` +
+    tasks.map(t => `<div class="cal-task-item">
+      <span class="tag tag-${t.type==='주기'?'blue':'gray'}" style="font-size:10px">${t.badge}</span>
+      <span style="flex:1;font-size:12px">${t.name}</span>
+    </div>`).join('');
+}
+
+// ============================================================
+// EXCEL DOWNLOAD
+// ============================================================
+function downloadExcel() {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+
+  const wb = XLSX.utils.book_new();
+
+  // 주기업무 시트
+  const pHeaders = ['업무명','주기유형','수행기준일','메모'];
+  const pData = state.periodicTasks.map(t => [t.name, t.cycleType, getCriteriaLabel(t), t.memo||'']);
+  const pWS = XLSX.utils.aoa_to_sheet([pHeaders, ...pData]);
+  pWS['!cols'] = [{wch:30},{wch:10},{wch:20},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, pWS, '주기업무');
+
+  // 일회성업무 시트 - 완료 제외 먼저, 완료 나중, 날짜 내림차순
+  const sortedOT = [...state.oneTimeTasks].sort((a,b) => {
+    if ((a.status==='완료') !== (b.status==='완료')) return a.status==='완료' ? 1 : -1;
+    const dA = a.requestedDate || a.plannedDate || '';
+    const dB = b.requestedDate || b.plannedDate || '';
+    return dB.localeCompare(dA);
+  });
+  const otHeaders = ['업무명','구분','중요도','긴급도','접수일','완료요청일','완료예정일','현황','최근진행사항','메모'];
+  const otData = sortedOT.map(t => [
+    t.name, t.category||'', t.importance||'', t.urgency||'',
+    t.receivedDate||'', t.requestedDate||'', t.plannedDate||'',
+    t.status||'',
+    t.progress?.length ? t.progress[t.progress.length-1].text : '',
+    t.memo||''
+  ]);
+  const otWS = XLSX.utils.aoa_to_sheet([otHeaders, ...otData]);
+  otWS['!cols'] = [{wch:30},{wch:12},{wch:8},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:40},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, otWS, '일회성업무');
+
+  const dateStr = fmtDateShort(new Date()).replace(/-/g,'');
+  XLSX.writeFile(wb, `${dateStr}_업무List.xlsx`);
+  showToast('엑셀 파일이 다운로드되었습니다');
+}
+
+// ============================================================
+// HOLIDAY MANAGEMENT
+// ============================================================
+function openHolidayModal() {
+  renderHolidayList();
+  document.getElementById('newHolidayDate').value = '';
+  document.getElementById('newHolidayName').value = '';
+  openModal('modalHoliday');
+}
+
+function renderHolidayList() {
+  const cont = document.getElementById('holidayList');
+  const sorted = [...state.holidays].sort((a,b) => {
+    const da = typeof a === 'string' ? a : a.date;
+    const db2 = typeof b === 'string' ? b : b.date;
+    return da.localeCompare(db2);
+  });
+  if (sorted.length === 0) {
+    cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">등록된 휴일이 없습니다</div>';
+    return;
+  }
+  cont.innerHTML = sorted.map((h, i) => {
+    const dateStr = typeof h === 'string' ? h : h.date;
+    const name = typeof h === 'string' ? '' : (h.name || '');
+    const d = parseDateStr(dateStr);
+    const label = d ? `${dateStr} (${KOR_DAYS[d.getDay()]})` : dateStr;
+    return `<div class="holiday-item">
+      <div>
+        <div class="holiday-item-date">${label}</div>
+        ${name ? `<div class="holiday-item-label">${name}</div>` : ''}
+      </div>
+      <button class="holiday-del-btn" onclick="deleteHoliday('${dateStr}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function addHoliday() {
+  const dateVal = document.getElementById('newHolidayDate').value;
+  const nameVal = document.getElementById('newHolidayName').value.trim();
+  if (!dateVal) { showToast('날짜를 선택하세요'); return; }
+  const already = state.holidays.some(h => (typeof h === 'string' ? h : h.date) === dateVal);
+  if (already) { showToast('이미 등록된 날짜입니다'); return; }
+  state.holidays.push({date: dateVal, name: nameVal});
+  await fbSaveHolidays();
+  saveLocal();
+  renderHolidayList();
+  renderTodayTasks();
+  showToast('휴일이 추가되었습니다');
+}
+
+async function deleteHoliday(dateStr) {
+  state.holidays = state.holidays.filter(h => (typeof h === 'string' ? h : h.date) !== dateStr);
+  await fbSaveHolidays();
+  saveLocal();
+  renderHolidayList();
+  renderTodayTasks();
+  showToast('휴일이 삭제되었습니다');
+}
+
+async function fbSaveHolidays() {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection('settings').doc('holidays').set({list: state.holidays}); }
+  catch(e) { saveLocal(); }
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+});
+</script>
+</body>
+</html>
