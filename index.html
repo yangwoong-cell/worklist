@@ -1,0 +1,4058 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>업무 관리</title>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surf:#161b22;--surf2:#21262d;--surf3:#2d333b;
+  --border:#30363d;--accent:#f0b429;--accent2:#fcd34d;
+  --text:#e6edf3;--text2:#8b949e;--text3:#484f58;
+  --red:#f85149;--orange:#f0883e;--green:#3fb950;--blue:#58a6ff;--purple:#bc8cff;
+  --r:10px;
+}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent}
+.page{display:none;min-height:100vh}
+.page.active{display:block}
+
+/* HEADER */
+.header{background:var(--surf);padding:12px 16px;position:sticky;top:0;z-index:100;border-bottom:1px solid var(--border)}
+.header-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.app-title{font-size:16px;font-weight:900;color:var(--accent);letter-spacing:-0.5px}
+.header-actions{display:flex;align-items:center;gap:8px}
+.icon-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .15s}
+.icon-btn:hover{background:var(--surf3);color:var(--text)}
+.date-nav{display:flex;align-items:center;gap:8px;justify-content:center}
+.date-display{font-size:15px;font-weight:700;color:var(--text);cursor:pointer;min-width:160px;text-align:center;padding:6px 10px;background:var(--surf2);border-radius:8px;border:1px solid var(--border)}
+.date-today-btn{font-size:11px;font-weight:700;background:rgba(240,180,41,.15);color:var(--accent);border:1px solid rgba(240,180,41,.3);border-radius:6px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+
+/* NAV GRID */
+.nav-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;padding:12px 16px}
+.nav-btn{background:var(--surf);border:1px solid var(--border);color:var(--text);padding:13px 8px;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:5px;line-height:1.3}
+.nav-btn:hover{border-color:var(--accent);color:var(--accent)}
+.nav-btn .nb-icon{font-size:18px}
+.nav-btn.excel-btn:hover{border-color:var(--green);color:var(--green)}
+
+/* TODAY TASKS */
+.section-label{padding:10px 16px 6px;font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1.2px;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.section-label::after{content:'';flex:1;height:1px;background:var(--border)}
+.task-list{padding:0 12px 80px}
+.task-card{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;overflow:hidden;position:relative;cursor:pointer;transition:transform .15s}
+.task-card-inner{padding:12px 14px;background:var(--surf)}
+.task-card-body{display:flex;align-items:center;gap:8px}
+.task-card-content{flex:1;min-width:0;cursor:pointer}
+.status-change-btn{flex-shrink:0;background:var(--surf2);border:1px solid var(--border);color:var(--text2);border-radius:8px;padding:6px 10px;cursor:pointer;font-size:11px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.3;text-align:center}
+.status-change-btn:hover{border-color:var(--accent);color:var(--accent)}
+.gcal-btn{flex-shrink:0;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.25);color:var(--blue);border-radius:8px;padding:6px 8px;cursor:pointer;font-size:10px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .15s;white-space:nowrap;line-height:1.4;text-align:center}
+.gcal-btn:hover{background:rgba(88,166,255,.2);border-color:var(--blue)}
+.gcal-modal-btn{width:100%;background:rgba(88,166,255,.1);border:1px solid rgba(88,166,255,.25);color:var(--blue);border-radius:8px;padding:11px 14px;cursor:pointer;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;transition:all .15s;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:8px}
+.gcal-modal-btn:hover{background:rgba(88,166,255,.2)}
+.task-name{font-size:13px;font-weight:700;color:var(--text);margin-bottom:6px;line-height:1.4}
+.task-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.tag{font-size:10px;padding:2px 7px;border-radius:12px;font-weight:700;white-space:nowrap}
+.tag-red{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.2)}
+.tag-orange{background:rgba(240,136,62,.12);color:var(--orange);border:1px solid rgba(240,136,62,.2)}
+.tag-blue{background:rgba(88,166,255,.12);color:var(--blue);border:1px solid rgba(88,166,255,.2)}
+.tag-green{background:rgba(63,185,80,.12);color:var(--green);border:1px solid rgba(63,185,80,.2)}
+.tag-purple{background:rgba(188,140,255,.12);color:var(--purple);border:1px solid rgba(188,140,255,.2)}
+.tag-gray{background:rgba(139,148,158,.1);color:var(--text2);border:1px solid rgba(139,148,158,.15)}
+.tag-accent{background:rgba(240,180,41,.12);color:var(--accent);border:1px solid rgba(240,180,41,.2)}
+.tl-overdue{border-left:3px solid var(--red)}
+.tl-warn{border-left:3px solid var(--orange)}
+.tl-periodic{border-left:3px solid var(--blue)}
+.tl-normal{border-left:3px solid var(--border)}
+.tl-completed{opacity:.5}
+
+/* PAGE HEADER */
+.page-header{display:flex;align-items:center;gap:10px;padding:14px 16px;background:var(--surf);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100}
+.page-header-title{font-size:16px;font-weight:800;flex:1}
+.back-btn{background:none;border:none;color:var(--text2);cursor:pointer;font-size:22px;line-height:1;padding:0}
+
+/* LIST ITEMS */
+.list-item{background:var(--surf);border:1px solid var(--border);border-radius:var(--r);margin-bottom:8px;padding:14px 16px;cursor:pointer;transition:border-color .15s}
+.list-item:hover{border-color:var(--accent)}
+.li-name{font-size:13px;font-weight:700;margin-bottom:6px}
+.li-meta{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+/* 정렬 버튼이 있는 list-item */
+.list-item-row{display:flex;align-items:center;gap:8px}
+.list-item-content{flex:1;min-width:0}
+.sort-btns{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.sort-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text3);width:26px;height:26px;border-radius:6px;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;transition:all .15s;line-height:1}
+.sort-btn:hover{background:var(--surf3);color:var(--text);border-color:var(--accent)}
+.sort-btn:disabled{opacity:.25;cursor:default}
+.sort-btn:disabled:hover{background:var(--surf2);color:var(--text3);border-color:var(--border)}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:200;align-items:flex-end;justify-content:center;padding:0}
+.modal-overlay.active{display:flex}
+.modal{background:var(--surf);width:100%;max-height:92vh;overflow-y:auto;padding:20px 18px 32px;border-radius:16px 16px 0 0;border-top:2px solid var(--accent);position:relative}
+.modal-drag{width:36px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;flex-shrink:0}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.modal-title{font-size:16px;font-weight:800}
+.close-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+
+/* FORM */
+.form-group{margin-bottom:14px}
+.form-label{display:block;font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px;letter-spacing:.5px}
+.form-input,.form-select,.form-textarea{width:100%;background:var(--surf2);border:1px solid var(--border);color:var(--text);padding:10px 12px;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none;transition:border-color .2s;-webkit-appearance:none}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--accent)}
+.form-textarea{resize:vertical;min-height:72px}
+.form-note{font-size:11px;color:var(--text3);margin-top:4px;line-height:1.5}
+.form-hint{font-size:11px;background:var(--surf3);border-radius:6px;padding:8px 10px;margin-top:6px;color:var(--text2);line-height:1.6}
+
+/* OPTION BUTTONS */
+.opt-group{display:flex;flex-wrap:wrap;gap:6px}
+.opt-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text2);padding:7px 12px;border-radius:8px;cursor:pointer;font-size:12px;font-family:'Noto Sans KR',sans-serif;transition:all .15s}
+.opt-btn.sel{background:var(--accent);border-color:var(--accent);color:#000;font-weight:700}
+.opt-btn.sel-red{background:var(--red);border-color:var(--red);color:#fff;font-weight:700}
+
+/* BUTTONS */
+.btn{padding:11px 18px;border-radius:8px;font-size:13px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;border:none;transition:all .2s}
+.btn-primary{background:var(--accent);color:#000;width:100%}
+.btn-primary:hover{background:var(--accent2)}
+.btn-secondary{background:var(--surf2);color:var(--text);border:1px solid var(--border)}
+.btn-danger{background:rgba(248,81,73,.12);color:var(--red);border:1px solid rgba(248,81,73,.25)}
+.btn-row{display:flex;gap:8px;margin-top:4px}
+.btn-row .btn{flex:1}
+
+/* FAB */
+.fab{position:fixed;bottom:24px;right:20px;width:52px;height:52px;border-radius:50%;background:var(--accent);color:#000;font-size:26px;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(240,180,41,.4);z-index:150;transition:transform .2s}
+.fab:active{transform:scale(.9)}
+
+/* STATUS PICKER */
+.status-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:300;align-items:center;justify-content:center}
+.status-overlay.active{display:flex}
+.status-picker{background:var(--surf);border-radius:14px;padding:20px;width:280px;border-top:2px solid var(--accent)}
+.status-picker-title{font-size:13px;font-weight:700;color:var(--text2);margin-bottom:12px}
+.status-opt{padding:12px 16px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;margin-bottom:7px;cursor:pointer;font-size:13px;font-weight:700;transition:all .15s}
+.status-opt:hover{border-color:var(--accent);color:var(--accent)}
+.status-opt:last-child{margin-bottom:0}
+
+/* STATUS BADGES */
+.sbadge{font-size:10px;padding:2px 8px;border-radius:12px;font-weight:700}
+.s-검토중{background:rgba(240,136,62,.12);color:var(--orange)}
+.s-회신대기중{background:rgba(240,180,41,.12);color:var(--accent)}
+.s-완료{background:rgba(63,185,80,.12);color:var(--green)}
+.s-미완료{background:rgba(139,148,158,.1);color:var(--text2)}
+.s-미수행{background:rgba(248,81,73,.12);color:var(--red)}
+.s-보류{background:rgba(188,140,255,.12);color:var(--purple)}
+
+/* HOLIDAY */
+.holiday-btn{background:var(--surf);border:1px solid var(--border);color:var(--text2);padding:8px 14px;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;font-family:'Noto Sans KR',sans-serif;display:flex;align-items:center;gap:5px;transition:all .2s;margin:0 16px 8px}
+.holiday-btn:hover{border-color:var(--purple);color:var(--purple)}
+.holiday-item{display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--surf2);border:1px solid var(--border);border-radius:8px;margin-bottom:6px}
+.holiday-item-date{font-size:13px;font-weight:700}
+.holiday-item-label{font-size:11px;color:var(--text2)}
+.holiday-del-btn{background:none;border:none;color:var(--text3);cursor:pointer;font-size:16px;padding:0 4px}
+.holiday-del-btn:hover{color:var(--red)}
+.status-date-row{margin-bottom:12px;padding:10px 12px;background:var(--surf2);border-radius:8px;border:1px solid var(--border)}
+.status-date-label{font-size:11px;color:var(--text2);font-weight:700;margin-bottom:6px;display:block}
+
+/* CALENDAR */
+.cal-modal{background:var(--surf);border-radius:14px;width:calc(100% - 32px);max-width:400px;padding:20px;max-height:90vh;overflow-y:auto;margin:auto}
+.cal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:250;align-items:center;justify-content:center}
+.cal-overlay.active{display:flex}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.cal-month{font-size:15px;font-weight:800}
+.cal-nav-btn{background:var(--surf2);border:1px solid var(--border);color:var(--text);width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:16px}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal-dh{text-align:center;font-size:11px;font-weight:700;color:var(--text3);padding:6px 0}
+.cal-day{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:7px;cursor:pointer;font-size:12px;font-weight:500;position:relative;transition:background .15s}
+.cal-day:hover:not(.cal-empty){background:var(--surf2)}
+.cal-today{background:var(--accent)!important;color:#000!important;font-weight:900}
+.cal-selected{background:var(--surf3)!important;border:1.5px solid var(--accent)}
+.cal-dot::after{content:'';width:4px;height:4px;background:var(--accent);border-radius:50%;position:absolute;bottom:2px}
+.cal-today.cal-dot::after{background:#000}
+.cal-empty{cursor:default}
+.cal-selected-info{margin-top:14px;padding:12px;background:var(--surf2);border-radius:10px;min-height:60px;max-height:360px;overflow-y:auto}
+.cal-info-title{font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px}
+.cal-section-label{font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin:8px 0 4px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.cal-task-item{font-size:12px;padding:5px 0;border-bottom:1px solid var(--border);color:var(--text);display:flex;align-items:flex-start;gap:6px}
+.cal-task-item:last-child{border-bottom:none}
+
+/* SEARCH */
+.search-bar{padding:10px 16px;background:var(--surf);border-bottom:1px solid var(--border)}
+.search-wrap{position:relative}
+.search-input{width:100%;background:var(--surf2);border:1px solid var(--border);color:var(--text);padding:9px 12px 9px 34px;border-radius:8px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none}
+.search-input:focus{border-color:var(--accent)}
+.search-ico{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px}
+
+/* TABS */
+.tab-bar{display:flex;background:var(--surf);border-bottom:1px solid var(--border)}
+.tab-item{flex:1;padding:11px 6px;text-align:center;font-size:12px;font-weight:700;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.tab-item.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+/* FILTER CHIPS */
+.filter-row{display:flex;gap:6px;padding:8px 16px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.filter-row::-webkit-scrollbar{display:none}
+.chip{background:var(--surf2);border:1px solid var(--border);color:var(--text2);padding:5px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .15s;font-family:'Noto Sans KR',sans-serif}
+.chip.active{background:var(--accent);border-color:var(--accent);color:#000}
+
+/* PROGRESS */
+.prog-item{background:var(--surf2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px}
+.prog-item-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.prog-date{font-size:11px;color:var(--text3);font-weight:600}
+.prog-text{font-size:12px;color:var(--text);line-height:1.5}
+.prog-remove{background:none;border:none;color:var(--text3);cursor:pointer;font-size:14px;padding:0}
+
+/* TOAST */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--surf3);border:1px solid var(--border);color:var(--text);padding:9px 18px;border-radius:8px;font-size:12px;font-weight:600;opacity:0;transition:all .3s;z-index:500;pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* EMPTY */
+.empty{text-align:center;padding:52px 20px;color:var(--text3)}
+.empty-ico{font-size:44px;margin-bottom:10px}
+.empty-txt{font-size:13px}
+
+/* IMPORTANCE */
+.imp-a{color:var(--red);font-weight:800}
+.imp-b{color:var(--orange);font-weight:800}
+.imp-c{color:var(--green);font-weight:800}
+
+/* FIREBASE NOTICE */
+.fb-notice{background:rgba(88,166,255,.08);border:1px solid rgba(88,166,255,.2);border-radius:8px;padding:10px 14px;margin:10px 16px;font-size:11px;color:var(--blue);line-height:1.6}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+
+select option{background:var(--surf2)}
+
+.date-filter-row{display:flex;gap:8px;align-items:center;padding:0 16px 8px}
+.date-filter-row .form-input{padding:8px 10px;font-size:12px}
+.date-filter-row label{font-size:11px;color:var(--text2);white-space:nowrap}
+
+/* UP/DOWN PAGE */
+.updown-section-title{font-size:11px;font-weight:700;color:var(--text3);letter-spacing:1px;text-transform:uppercase;padding:4px 0 2px}
+.updown-btn{display:flex;align-items:center;gap:12px;width:100%;padding:14px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--surf);cursor:pointer;font-family:'Noto Sans KR',sans-serif;transition:all .2s;text-align:left}
+.updown-btn:hover{transform:translateX(2px)}
+.updown-dl{border-color:rgba(63,185,80,.25);background:rgba(63,185,80,.05)}
+.updown-dl:hover{border-color:var(--green)}
+.updown-ul{border-color:rgba(240,180,41,.25);background:rgba(240,180,41,.05)}
+.updown-ul:hover{border-color:var(--accent)}
+.updown-export{border-color:rgba(88,166,255,.25);background:rgba(88,166,255,.05)}
+.updown-export:hover{border-color:var(--blue)}
+.updown-icon{font-size:24px;flex-shrink:0}
+.updown-text{flex:1;min-width:0}
+.updown-main{font-size:13px;font-weight:700;color:var(--text);margin-bottom:3px}
+.updown-sub{font-size:11px;color:var(--text3);line-height:1.4}
+.updown-arrow{font-size:18px;font-weight:900;flex-shrink:0}
+.updown-dl .updown-arrow{color:var(--green)}
+.updown-ul .updown-arrow{color:var(--accent)}
+.updown-export .updown-arrow{color:var(--blue)}
+.upload-result-box{background:var(--surf2);border:1px solid var(--border);border-radius:var(--r);padding:14px;margin-top:4px}
+.upload-result-title{font-size:13px;font-weight:700;margin-bottom:8px}
+.upload-result-row{font-size:12px;color:var(--text2);padding:4px 0;border-bottom:1px solid var(--border)}
+.upload-result-row:last-child{border-bottom:none}
+.upload-result-ok{color:var(--green)}
+.upload-result-skip{color:var(--orange)}
+</style>
+</head>
+<body>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- STATUS OVERLAY -->
+<div class="status-overlay" id="statusOverlay">
+  <div class="status-picker">
+    <div class="status-picker-title">📋 현황 변경</div>
+    <div class="status-date-row" id="statusDateRow" style="display:none">
+      <span class="status-date-label">📅 날짜 지정 (주기업무)</span>
+      <input type="date" class="form-input" id="statusDateInput" style="font-size:13px;padding:7px 10px">
+    </div>
+    <div class="status-opt" onclick="setStatus('미완료')">🔲 미완료</div>
+    <div class="status-opt" onclick="setStatus('미수행')">⛔ 미수행</div>
+    <div class="status-opt" onclick="setStatus('검토중')">🔍 검토중</div>
+    <div class="status-opt" onclick="setStatus('회신대기중')">⏳ 회신대기중</div>
+    <div class="status-opt" onclick="setStatus('완료')">✅ 완료</div>
+    <div class="status-opt" onclick="setStatus('보류')">⏸ 보류</div>
+    <div class="status-opt" style="margin-top:8px;border-top:1px solid var(--border);border-radius:0;background:none;color:var(--text3)" onclick="closeStatusOverlay()">취소</div>
+  </div>
+</div>
+
+<!-- CALENDAR OVERLAY -->
+<div class="cal-overlay" id="calOverlay">
+  <div class="cal-modal">
+    <div class="cal-header">
+      <button class="cal-nav-btn" onclick="calPrev()">‹</button>
+      <div class="cal-month" id="calMonthTitle"></div>
+      <button class="cal-nav-btn" onclick="calNext()">›</button>
+      <button class="close-btn" onclick="document.getElementById('calOverlay').classList.remove('active')" style="margin-left:8px">✕</button>
+    </div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-selected-info" id="calSelectedInfo">
+      <div class="cal-info-title">날짜를 선택하세요</div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: MAIN -->
+<!-- ============================================================ -->
+<div class="page active" id="pagMain">
+  <div class="header">
+    <div class="header-row1">
+      <div class="app-title">⚡ 업무 관리</div>
+      <div class="header-actions">
+        <button class="date-today-btn" onclick="goToday()">오늘</button>
+        <button class="icon-btn" title="달력" onclick="openCalendar()">📅</button>
+      </div>
+    </div>
+    <div class="date-nav">
+      <button class="icon-btn" onclick="changeDate(-1)">‹</button>
+      <div class="date-display" id="dateDisplay" onclick="openCalendar()"></div>
+      <button class="icon-btn" onclick="changeDate(1)">›</button>
+    </div>
+  </div>
+  <div id="fbNotice"></div>
+  <div class="nav-grid">
+    <button class="nav-btn" onclick="showPage('pagPeriodic')"><span class="nb-icon">🔄</span>주기업무</button>
+    <button class="nav-btn" onclick="showPage('pagOneTime')"><span class="nb-icon">📌</span>일회성업무</button>
+    <button class="nav-btn" onclick="showPage('pagMeeting')"><span class="nb-icon">🗣</span>회의 List</button>
+    <button class="nav-btn" onclick="showPage('pagTodo')"><span class="nb-icon">☑️</span>To Do List</button>
+    <button class="nav-btn" onclick="showPage('pagCompleted')"><span class="nb-icon">✅</span>완료업무</button>
+    <button class="nav-btn excel-btn" onclick="showPage('pagUpDown')"><span class="nb-icon">📂</span>UP/DOWN</button>
+  </div>
+  <button class="holiday-btn" onclick="openHolidayModal()">🏖 회사 휴일 관리</button>
+  <div id="todayTaskContainer"></div>
+</div>
+
+<!-- MODAL: HOLIDAY MANAGEMENT -->
+<div class="modal-overlay" id="modalHoliday">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title">🏖 회사 휴일 관리</div>
+      <button class="close-btn" onclick="closeModal('modalHoliday')">✕</button>
+    </div>
+    <div class="form-note" style="margin-bottom:12px;color:var(--text2)">
+      주말(토·일)은 자동으로 휴일 처리됩니다. 아래에는 추가 회사 휴일(공휴일·임시휴일 등)을 등록하세요.<br>
+      주기업무(일일 제외)의 수행일이 휴일이면 다음 근무일로 자동 이동합니다.
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:14px;align-items:flex-end">
+      <div style="flex:1">
+        <label class="form-label">날짜 선택</label>
+        <input type="date" class="form-input" id="newHolidayDate">
+      </div>
+      <div style="flex:1">
+        <label class="form-label">이름 (선택)</label>
+        <input class="form-input" id="newHolidayName" placeholder="예: 창립기념일">
+      </div>
+      <button class="btn btn-primary" style="width:auto;padding:10px 16px;flex-shrink:0" onclick="addHoliday()">추가</button>
+    </div>
+    <div id="holidayList"></div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: PERIODIC -->
+<!-- ============================================================ -->
+<div class="page" id="pagPeriodic">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">🔄 주기업무 List</div>
+    <button class="icon-btn" onclick="openPeriodicForm(null)">＋</button>
+  </div>
+  <div class="task-list" id="periodicList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: ONE-TIME -->
+<!-- ============================================================ -->
+<div class="page" id="pagOneTime">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">📌 일회성업무 List</div>
+    <button class="icon-btn" onclick="openOneTimeForm(null)">＋</button>
+  </div>
+  <div class="filter-row" id="oneTimeFilterRow"></div>
+  <div class="task-list" id="oneTimeList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: COMPLETED -->
+<!-- ============================================================ -->
+<div class="page" id="pagCompleted">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">✅ 완료업무 List</div>
+  </div>
+  <div class="tab-bar">
+    <div class="tab-item active" id="tabPeriodic" onclick="switchCompletedTab('periodic')">주기업무</div>
+    <div class="tab-item" id="tabOneTime" onclick="switchCompletedTab('oneTime')">일회성업무</div>
+  </div>
+  <div class="search-bar">
+    <div class="search-wrap">
+      <span class="search-ico">🔍</span>
+      <input class="search-input" id="completedSearch" placeholder="키워드 검색..." oninput="renderCompleted()">
+    </div>
+  </div>
+  <div class="date-filter-row">
+    <label>기간:</label>
+    <input type="date" class="form-input" id="completedFrom" onchange="renderCompleted()">
+    <span style="color:var(--text3);font-size:12px">~</span>
+    <input type="date" class="form-input" id="completedTo" onchange="renderCompleted()">
+  </div>
+  <div class="task-list" id="completedList"></div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: MEETING -->
+<!-- ============================================================ -->
+<div class="page" id="pagMeeting">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">🗣 회의 List</div>
+    <button class="icon-btn" onclick="openMeetingForm(null)">＋</button>
+  </div>
+  <div class="filter-row" id="meetingFilterRow">
+    <button class="chip active" id="mchip-all" onclick="setMeetingFilter('all')">전체</button>
+    <button class="chip" id="mchip-정기" onclick="setMeetingFilter('정기')">정기</button>
+    <button class="chip" id="mchip-수시" onclick="setMeetingFilter('수시')">수시</button>
+  </div>
+  <div class="task-list" id="meetingList"></div>
+</div>
+
+<!-- MODAL: MEETING FORM -->
+<div class="modal-overlay" id="modalMeeting">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="meetingModalTitle">회의 추가</div>
+      <button class="close-btn" onclick="closeModal('modalMeeting')">✕</button>
+    </div>
+
+    <!-- 1. 유형 (맨 위) -->
+    <div class="form-group">
+      <label class="form-label">유형 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" id="mtBtn-수시" onclick="pickMeetingType(this,'수시')">수시</button>
+        <button class="opt-btn" id="mtBtn-정기" onclick="pickMeetingType(this,'정기')">정기</button>
+      </div>
+      <input type="hidden" id="mtType">
+    </div>
+
+    <!-- 2. 수시 전용: 일자 -->
+    <div id="mtSusiFields">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="form-group">
+          <label class="form-label">일자 *</label>
+          <input type="date" class="form-input" id="mtDate">
+        </div>
+        <div class="form-group">
+          <label class="form-label">시작시간</label>
+          <input type="time" class="form-input" id="mtTime">
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 정기 전용: 주기 설정 -->
+    <div id="mtJeonggiFields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">주기 *</label>
+        <div class="opt-group">
+          <button class="opt-btn" id="mtCycleBtn-주간" onclick="pickMeetingCycle(this,'주간')">주간</button>
+          <button class="opt-btn" id="mtCycleBtn-월간" onclick="pickMeetingCycle(this,'월간')">월간</button>
+        </div>
+        <input type="hidden" id="mtCycle">
+      </div>
+      <div class="form-group">
+        <label class="form-label">시작시간</label>
+        <input type="time" class="form-input" id="mtTimeRegular">
+      </div>
+      <!-- 주간 요일 -->
+      <div id="mtWeekDayGroup" style="display:none">
+        <div class="form-group">
+          <label class="form-label">수행 요일 (복수 선택 가능)</label>
+          <div class="opt-group" id="mtWeekDayBtns">
+            <button class="opt-btn" onclick="toggleMtWeekDay(this,'월')">월</button>
+            <button class="opt-btn" onclick="toggleMtWeekDay(this,'화')">화</button>
+            <button class="opt-btn" onclick="toggleMtWeekDay(this,'수')">수</button>
+            <button class="opt-btn" onclick="toggleMtWeekDay(this,'목')">목</button>
+            <button class="opt-btn" onclick="toggleMtWeekDay(this,'금')">금</button>
+          </div>
+        </div>
+      </div>
+      <!-- 월간 주차 + 요일 -->
+      <div id="mtMonthGroup" style="display:none">
+        <div class="form-group">
+          <label class="form-label">주차</label>
+          <div class="opt-group" id="mtWeekNumBtns">
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekNum','1주')">1주</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekNum','2주')">2주</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekNum','3주')">3주</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekNum','4주')">4주</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekNum','마지막주')">마지막주</button>
+          </div>
+          <input type="hidden" id="mtWeekNum">
+        </div>
+        <div class="form-group">
+          <label class="form-label">요일</label>
+          <div class="opt-group" id="mtWeekDayMonthBtns">
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekDayMonth','월')">월</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekDayMonth','화')">화</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekDayMonth','수')">수</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekDayMonth','목')">목</button>
+            <button class="opt-btn" onclick="pickMtOne(this,'mtWeekDayMonth','금')">금</button>
+          </div>
+          <input type="hidden" id="mtWeekDayMonth">
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. 공통 필드 -->
+    <div class="form-group">
+      <label class="form-label">회의명 *</label>
+      <input class="form-input" id="mtName" placeholder="회의명을 입력하세요">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">장소</label>
+      <input class="form-input" id="mtPlace" placeholder="회의 장소">
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">주최부서</label>
+        <input class="form-input" id="mtHostDept" placeholder="주최부서">
+      </div>
+      <div class="form-group">
+        <label class="form-label">주최자</label>
+        <input class="form-input" id="mtHostPerson" placeholder="주최자">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">참석부서</label>
+      <input class="form-input" id="mtAttendDept" placeholder="참석부서 (복수 입력 가능)">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">회의안건</label>
+      <textarea class="form-textarea" id="mtAgenda" placeholder="회의 안건을 입력하세요"></textarea>
+    </div>
+
+    <input type="hidden" id="mtEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="mtDeleteBtn" style="display:none" onclick="deleteMeeting()">삭제</button>
+      <button class="btn btn-primary" onclick="saveMeeting()">저장</button>
+    </div>
+    <button class="gcal-modal-btn" id="mtGcalBtn" style="display:none" onclick="sendToGCal_meeting()">📅 구글 캘린더에 추가</button>
+  </div>
+</div>
+<!-- MODAL: MEETING STATUS (일자별 현황/결과) -->
+<div class="modal-overlay" id="modalMeetingStatus">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="mtStatusModalTitle">회의 현황 입력</div>
+      <button class="close-btn" onclick="closeModal('modalMeetingStatus')">✕</button>
+    </div>
+    <div style="font-size:12px;color:var(--text2);margin-bottom:12px" id="mtStatusDateLabel"></div>
+
+    <div class="form-group">
+      <label class="form-label">현황</label>
+      <div class="opt-group">
+        <button class="opt-btn" id="mrBtn-참석완료" onclick="pickMeetingStatus(this,'참석완료')">✅ 참석완료</button>
+        <button class="opt-btn" id="mrBtn-미참석"  onclick="pickMeetingStatus(this,'미참석')">⛔ 미참석</button>
+        <button class="opt-btn" id="mrBtn-취소"    onclick="pickMeetingStatus(this,'취소')">🚫 취소</button>
+      </div>
+      <input type="hidden" id="mrStatus">
+    </div>
+
+    <div class="form-group" id="mrReasonGroup" style="display:none">
+      <label class="form-label">미참석 사유</label>
+      <textarea class="form-textarea" id="mrReason" placeholder="미참석 사유를 입력하세요" style="min-height:56px"></textarea>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">회의결과</label>
+      <textarea class="form-textarea" id="mrResult" placeholder="회의 결과를 입력하세요"></textarea>
+    </div>
+
+    <input type="hidden" id="mrMeetingId">
+    <input type="hidden" id="mrDate">
+    <input type="hidden" id="mrEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="mrDeleteBtn" style="display:none" onclick="deleteMeetingResult()">삭제</button>
+      <button class="btn btn-primary" onclick="saveMeetingResult()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- PAGE: TODO -->
+<!-- ============================================================ -->
+<div class="page" id="pagTodo">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">☑️ To Do List (개인용)</div>
+    <button class="icon-btn" onclick="openTodoForm(null)">＋</button>
+  </div>
+  <div class="filter-row">
+    <button class="chip active" id="todochip-all"    onclick="setTodoFilter('all')">전체</button>
+    <button class="chip"        id="todochip-수시"   onclick="setTodoFilter('수시')">수시</button>
+    <button class="chip"        id="todochip-정기"   onclick="setTodoFilter('정기')">정기</button>
+    <button class="chip"        id="todochip-미완료" onclick="setTodoFilter('미완료')">미완료</button>
+    <button class="chip"        id="todochip-완료"   onclick="setTodoFilter('완료')">완료</button>
+  </div>
+  <div class="task-list" id="todoList"></div>
+</div>
+
+<!-- MODAL: TODO FORM -->
+<div class="modal-overlay" id="modalTodo">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="todoModalTitle">할 일 추가</div>
+      <button class="close-btn" onclick="closeModal('modalTodo')">✕</button>
+    </div>
+
+    <!-- 유형 (맨 위) -->
+    <div class="form-group">
+      <label class="form-label">유형 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" id="tdBtn-수시" onclick="pickTodoType(this,'수시')">수시</button>
+        <button class="opt-btn" id="tdBtn-정기" onclick="pickTodoType(this,'정기')">정기</button>
+      </div>
+      <input type="hidden" id="tdType">
+    </div>
+
+    <!-- 수시: 기한 날짜 -->
+    <div id="tdSusiFields">
+      <div class="form-group">
+        <label class="form-label">기한</label>
+        <input type="date" class="form-input" id="tdDate">
+      </div>
+    </div>
+
+    <!-- 정기: 주간/월간 -->
+    <div id="tdJeonggiFields" style="display:none">
+      <div class="form-group">
+        <label class="form-label">주기 *</label>
+        <div class="opt-group">
+          <button class="opt-btn" id="tdCycleBtn-일일" onclick="pickTodoCycle(this,'일일')">일일</button>
+          <button class="opt-btn" id="tdCycleBtn-주간" onclick="pickTodoCycle(this,'주간')">주간</button>
+          <button class="opt-btn" id="tdCycleBtn-월간" onclick="pickTodoCycle(this,'월간')">월간</button>
+        </div>
+        <input type="hidden" id="tdCycle">
+      </div>
+      <!-- 주간 요일 -->
+      <div id="tdWeekDayGroup" style="display:none">
+        <div class="form-group">
+          <label class="form-label">수행 요일 (복수 선택 가능)</label>
+          <div class="opt-group" id="tdWeekDayBtns">
+            <button class="opt-btn" onclick="this.classList.toggle('sel')">월</button>
+            <button class="opt-btn" onclick="this.classList.toggle('sel')">화</button>
+            <button class="opt-btn" onclick="this.classList.toggle('sel')">수</button>
+            <button class="opt-btn" onclick="this.classList.toggle('sel')">목</button>
+            <button class="opt-btn" onclick="this.classList.toggle('sel')">금</button>
+          </div>
+        </div>
+      </div>
+      <!-- 월간 주차 + 요일 -->
+      <div id="tdMonthGroup" style="display:none">
+        <div class="form-group">
+          <label class="form-label">주차</label>
+          <div class="opt-group" id="tdWeekNumBtns">
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekNum','1주')">1주</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekNum','2주')">2주</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekNum','3주')">3주</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekNum','4주')">4주</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekNum','마지막주')">마지막주</button>
+          </div>
+          <input type="hidden" id="tdWeekNum">
+        </div>
+        <div class="form-group">
+          <label class="form-label">요일</label>
+          <div class="opt-group" id="tdWeekDayMonthBtns">
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekDayMonth','월')">월</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekDayMonth','화')">화</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekDayMonth','수')">수</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekDayMonth','목')">목</button>
+            <button class="opt-btn" onclick="pickTdOne(this,'tdWeekDayMonth','금')">금</button>
+          </div>
+          <input type="hidden" id="tdWeekDayMonth">
+        </div>
+      </div>
+    </div>
+
+    <!-- 할일명 -->
+    <div class="form-group">
+      <label class="form-label">할일명 *</label>
+      <input class="form-input" id="tdName" placeholder="할 일을 입력하세요">
+    </div>
+
+    <!-- 완료 여부 (수정 시에만 표시) -->
+    <div class="form-group" id="tdStatusGroup" style="display:none">
+      <label class="form-label">상태</label>
+      <div class="opt-group">
+        <button class="opt-btn" id="tdStatusBtn-미완료" onclick="pickTdOne(this,'tdStatus','미완료')">⬜ 미완료</button>
+        <button class="opt-btn" id="tdStatusBtn-완료"   onclick="pickTdOne(this,'tdStatus','완료')">✅ 완료</button>
+      </div>
+      <input type="hidden" id="tdStatus" value="미완료">
+    </div>
+
+    <!-- 메모 -->
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <textarea class="form-textarea" id="tdMemo" placeholder="메모 (선택)"></textarea>
+    </div>
+
+    <input type="hidden" id="tdEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="tdDeleteBtn" style="display:none" onclick="deleteTodo()">삭제</button>
+      <button class="btn btn-primary" onclick="saveTodo()">저장</button>
+    </div>
+  </div>
+</div>
+
+
+<div class="page" id="pagUpDown">
+  <div class="page-header">
+    <button class="back-btn" onclick="showPage('pagMain')">←</button>
+    <div class="page-header-title">📂 업무List UP/DOWN</div>
+  </div>
+  <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+
+    <!-- 섹션: 양식 다운로드 -->
+    <div class="updown-section-title">📥 업로드 양식 다운로드</div>
+    <button class="updown-btn updown-dl" onclick="downloadPeriodicTemplate()">
+      <span class="updown-icon">📋</span>
+      <div class="updown-text">
+        <div class="updown-main">주기업무 업로드 양식 다운</div>
+        <div class="updown-sub">엑셀 양식을 다운받아 작성 후 업로드하세요</div>
+      </div>
+      <span class="updown-arrow">↓</span>
+    </button>
+    <button class="updown-btn updown-dl" onclick="downloadOneTimeTemplate()">
+      <span class="updown-icon">📋</span>
+      <div class="updown-text">
+        <div class="updown-main">일회성업무 업로드 양식 다운</div>
+        <div class="updown-sub">엑셀 양식을 다운받아 작성 후 업로드하세요</div>
+      </div>
+      <span class="updown-arrow">↓</span>
+    </button>
+
+    <!-- 섹션: 업로드 -->
+    <div class="updown-section-title" style="margin-top:8px">📤 업무 업로드</div>
+    <button class="updown-btn updown-ul" onclick="triggerUpload('periodic')">
+      <span class="updown-icon">🔄</span>
+      <div class="updown-text">
+        <div class="updown-main">주기업무 업로드</div>
+        <div class="updown-sub">작성한 주기업무 양식 파일을 불러옵니다</div>
+      </div>
+      <span class="updown-arrow">↑</span>
+    </button>
+    <button class="updown-btn updown-ul" onclick="triggerUpload('onetime')">
+      <span class="updown-icon">📌</span>
+      <div class="updown-text">
+        <div class="updown-main">일회성업무 업로드</div>
+        <div class="updown-sub">작성한 일회성업무 양식 파일을 불러옵니다</div>
+      </div>
+      <span class="updown-arrow">↑</span>
+    </button>
+
+    <!-- 섹션: 전체 다운로드 -->
+    <div class="updown-section-title" style="margin-top:8px">💾 전체 데이터 다운로드</div>
+    <button class="updown-btn updown-export" onclick="downloadExcel()">
+      <span class="updown-icon">📊</span>
+      <div class="updown-text">
+        <div class="updown-main">업무List 엑셀 다운</div>
+        <div class="updown-sub">주기업무 + 일회성업무 + 회의 + ToDo 전체 저장</div>
+      </div>
+      <span class="updown-arrow">↓</span>
+    </button>
+    <button class="updown-btn updown-export" onclick="downloadProgressExcel()" style="border-color:rgba(240,136,62,.3);background:rgba(240,136,62,.05)">
+      <span class="updown-icon">📈</span>
+      <div class="updown-text">
+        <div class="updown-main">업무 진행 현황 엑셀 다운</div>
+        <div class="updown-sub">진행 현황을 일자별로 시트 분류 저장 (완료 맨 아래)</div>
+      </div>
+      <span class="updown-arrow" style="color:var(--orange)">↓</span>
+    </button>
+
+    <!-- 숨겨진 파일 입력 -->
+    <input type="file" id="uploadFileInput" accept=".xlsx,.xls" style="display:none" onchange="handleUploadFile(event)">
+
+    <!-- 업로드 결과 -->
+    <div id="uploadResult" style="display:none"></div>
+  </div>
+</div>
+
+<!-- iOS 다운로드 오버레이 -->
+<div class="modal-overlay" id="iosDownloadOverlay">
+  <div class="modal" style="padding-bottom:24px">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title">📁 파일 저장</div>
+      <button class="close-btn" onclick="closeIosDownload()">✕</button>
+    </div>
+    <div style="background:var(--surf2);border-radius:10px;padding:14px;margin-bottom:16px;font-size:12px;color:var(--text2);line-height:2">
+      1. 아래 노란 버튼을 <b style="color:var(--accent)">꾹 누르세요 (길게 탭)</b><br>
+      2. 메뉴에서 <b style="color:var(--green)">"링크 다운로드"</b> 선택<br>
+      3. 또는 버튼 탭 후 열리는 화면에서<br>
+      &nbsp;&nbsp;&nbsp;하단 <b style="color:var(--accent)">공유(□↑)</b> → <b style="color:var(--green)">"파일에 저장"</b>
+    </div>
+    <a id="iosDownloadLink" href="#" target="_blank"
+      style="display:flex;align-items:center;justify-content:center;gap:10px;
+             background:var(--accent);color:#000;font-weight:800;font-size:15px;
+             padding:18px;border-radius:10px;text-decoration:none;
+             font-family:'Noto Sans KR',sans-serif;margin-bottom:10px"
+      onclick="closeIosDownload()">
+      📥 여기를 탭 (또는 꾹 누르기)
+    </a>
+    <div style="text-align:center;font-size:11px;color:var(--text3)" id="iosDownloadFilename"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modalPeriodic">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="periodicModalTitle">주기업무 추가</div>
+      <button class="close-btn" onclick="closeModal('modalPeriodic')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">업무명 *</label>
+      <input class="form-input" id="pName" placeholder="업무명을 입력하세요">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">주기 유형 *</label>
+      <div class="opt-group" id="pCycleType">
+        <button class="opt-btn" onclick="selectCycle(this,'일일')">일일</button>
+        <button class="opt-btn" onclick="selectCycle(this,'주간')">주간</button>
+        <button class="opt-btn" onclick="selectCycle(this,'월간')">월간</button>
+        <button class="opt-btn" onclick="selectCycle(this,'분기')">분기</button>
+        <button class="opt-btn" onclick="selectCycle(this,'연간')">연간</button>
+      </div>
+    </div>
+
+    <div id="pCycleFields"></div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <textarea class="form-textarea" id="pMemo" placeholder="메모 (선택)"></textarea>
+    </div>
+
+    <input type="hidden" id="pEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="pDeleteBtn" style="display:none" onclick="deletePeriodicTask()">삭제</button>
+      <button class="btn btn-primary" onclick="savePeriodicTask()">저장</button>
+    </div>
+    <button class="gcal-modal-btn" id="pGcalBtn" style="display:none" onclick="sendToGCal_periodic()">📅 구글 캘린더에 추가</button>
+  </div>
+</div>
+
+<!-- ============================================================ -->
+<!-- MODAL: ONE-TIME FORM -->
+<!-- ============================================================ -->
+<div class="modal-overlay" id="modalOneTime">
+  <div class="modal">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title" id="oneTimeModalTitle">일회성업무 추가</div>
+      <button class="close-btn" onclick="closeModal('modalOneTime')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">업무명 *</label>
+      <input class="form-input" id="otName" placeholder="업무명을 입력하세요">
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">구분 *
+        <button onclick="openAddCategory()" style="background:none;border:none;color:var(--accent);cursor:pointer;font-size:11px;margin-left:8px;font-family:'Noto Sans KR',sans-serif">+ 항목 추가</button>
+      </label>
+      <div class="opt-group" id="otCategoryGroup"></div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">중요도 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','A')">A</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','B')">B</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otImp','C')">C</button>
+      </div>
+      <input type="hidden" id="otImp">
+      <div class="form-hint">
+        🔴 <b>A</b>: 업무 성과에 치명적 영향 / 즉시 처리 필요<br>
+        🟠 <b>B</b>: 중요하나 단기 지연 허용 / 계획적 처리<br>
+        🟢 <b>C</b>: 필요하지만 우선순위 낮음 / 여유 처리
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">긴급도 *</label>
+      <div class="opt-group">
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','A')">A</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','B')">B</button>
+        <button class="opt-btn" onclick="selectOpt(this,'otUrg','C')">C</button>
+      </div>
+      <input type="hidden" id="otUrg">
+      <div class="form-hint">
+        🔴 <b>A</b>: 오늘~내일 처리 필수 / 즉각 대응<br>
+        🟠 <b>B</b>: 이번주 내 처리 / 일정 수립 필요<br>
+        🟢 <b>C</b>: 이번달 내 처리 / 여유 대응 가능
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">접수일</label>
+        <input type="date" class="form-input" id="otReceived">
+      </div>
+      <div class="form-group">
+        <label class="form-label">완료 요청일</label>
+        <input type="date" class="form-input" id="otRequested">
+      </div>
+      <div class="form-group">
+        <label class="form-label">완료 예정일</label>
+        <input type="date" class="form-input" id="otPlanned">
+      </div>
+      <div class="form-group">
+        <label class="form-label">현황</label>
+        <select class="form-select" id="otStatus">
+          <option value="미완료">미완료</option>
+          <option value="미수행">미수행</option>
+          <option value="검토중">검토중</option>
+          <option value="회신대기중">회신대기중</option>
+          <option value="완료">완료</option>
+          <option value="보류">보류</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">진행사항</label>
+      <div id="otProgressList"></div>
+      <button class="btn btn-secondary" style="width:100%;margin-top:4px;font-size:12px" onclick="addProgressItem()">＋ 진행사항 추가</button>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+      <div class="form-group">
+        <label class="form-label">요청 의뢰자</label>
+        <input class="form-input" id="otRequester" placeholder="요청 의뢰자">
+      </div>
+      <div class="form-group">
+        <label class="form-label">협조자</label>
+        <input class="form-input" id="otCollaborator" placeholder="협조자">
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">메모</label>
+      <textarea class="form-textarea" id="otMemo" placeholder="메모 (선택)"></textarea>
+    </div>
+
+    <input type="hidden" id="otEditId">
+    <div class="btn-row">
+      <button class="btn btn-danger" id="otDeleteBtn" style="display:none" onclick="deleteOneTimeTask()">삭제</button>
+      <button class="btn btn-primary" onclick="saveOneTimeTask()">저장</button>
+    </div>
+    <button class="gcal-modal-btn" id="otGcalBtn" style="display:none" onclick="sendToGCal_onetime()">📅 구글 캘린더에 추가</button>
+  </div>
+</div>
+
+<!-- MODAL: ADD CATEGORY -->
+<div class="modal-overlay" id="modalCategory">
+  <div class="modal" style="padding-bottom:20px">
+    <div class="modal-drag"></div>
+    <div class="modal-header">
+      <div class="modal-title">구분 항목 추가</div>
+      <button class="close-btn" onclick="closeModal('modalCategory')">✕</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label">새 항목명</label>
+      <input class="form-input" id="newCategoryInput" placeholder="항목명 입력">
+    </div>
+    <button class="btn btn-primary" onclick="saveNewCategory()">추가</button>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// FIREBASE CONFIGURATION — 여기에 본인의 Firebase 설정을 입력하세요
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyDSRF1QH-iy_18D3PhBEjWAtH1GppYL4VA",
+  authDomain: "worklist-2b1c4.firebaseapp.com",
+  projectId: "worklist-2b1c4",
+  storageBucket: "worklist-2b1c4.firebasestorage.app",
+  messagingSenderId: "438381091631",
+  appId: "1:438381091631:web:25eeef68b86a0d84175fda"
+};
+
+// ============================================================
+// STATE
+// ============================================================
+let db = null;
+let state = {
+  currentDate: new Date(),
+  currentPage: 'pagMain',
+  periodicTasks: [],
+  oneTimeTasks: [],
+  completions: [],
+  categories: ['시설','설비','안전','교육','소모품','CS','개발과제','표준형과제','주문형과제','자격/인증','관리','규정','자기계발'],
+  currentCycle: '',
+  currentOtCategory: '',
+  otProgressItems: [],
+  calDate: new Date(),
+  calSelectedDate: null,
+  completedTab: 'periodic',
+  oneTimeFilter: 'all',
+  holidays: [], // [{date:'YYYY-MM-DD', name:'...'}]
+  dateOverrides: [], // [{taskId, originalDate, movedDate}]
+  meetings: [],      // 회의 목록
+  meetingFilter: 'all',
+  meetingResults: [], // 일자별 회의 현황/결과 [{id, meetingId, date, status, reason, result}]
+  todos: [],         // To Do List (개인용)
+  todoFilter: 'all',
+  todoCompletions: [], // 정기 ToDo 날짜별 완료 기록 [{todoId, date}]
+};
+
+// ============================================================
+// FIREBASE INIT
+// ============================================================
+function initFirebase() {
+  try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    loadAll();
+    document.getElementById('fbNotice').innerHTML = '';
+  } catch(e) {
+    document.getElementById('fbNotice').innerHTML =
+      '<div class="fb-notice">⚠️ Firebase 미설정: <code>firebaseConfig</code>에 본인의 Firebase 프로젝트 정보를 입력하세요. 현재는 로컬 임시 데이터로 동작합니다.</div>';
+    loadLocalData();
+  }
+}
+
+// ============================================================
+// LOCAL STORAGE FALLBACK
+// ============================================================
+function loadLocalData() {
+  try {
+    state.periodicTasks = JSON.parse(localStorage.getItem('periodicTasks') || '[]');
+    state.oneTimeTasks = JSON.parse(localStorage.getItem('oneTimeTasks') || '[]');
+    state.completions = JSON.parse(localStorage.getItem('completions') || '[]');
+    const cats = JSON.parse(localStorage.getItem('categories') || 'null');
+    if (cats) state.categories = cats;
+    const hols = JSON.parse(localStorage.getItem('holidays') || 'null');
+    if (hols) state.holidays = hols;
+    const overrides = JSON.parse(localStorage.getItem('dateOverrides') || 'null');
+    if (overrides) state.dateOverrides = overrides;
+    const meetings = JSON.parse(localStorage.getItem('meetings') || 'null');
+    if (meetings) state.meetings = meetings;
+    const mrecs = JSON.parse(localStorage.getItem('meetingResults') || 'null');
+    if (mrecs) state.meetingResults = mrecs;
+    const todos = JSON.parse(localStorage.getItem('todos') || 'null');
+    if (todos) state.todos = todos;
+    const todoCmps = JSON.parse(localStorage.getItem('todoCompletions') || 'null');
+    if (todoCmps) state.todoCompletions = todoCmps;
+  } catch(e){}
+  renderAll();
+}
+
+function saveLocal() {
+  try {
+    localStorage.setItem('periodicTasks', JSON.stringify(state.periodicTasks));
+    localStorage.setItem('oneTimeTasks', JSON.stringify(state.oneTimeTasks));
+    localStorage.setItem('completions', JSON.stringify(state.completions));
+    localStorage.setItem('categories', JSON.stringify(state.categories));
+    localStorage.setItem('holidays', JSON.stringify(state.holidays));
+    localStorage.setItem('dateOverrides', JSON.stringify(state.dateOverrides));
+    localStorage.setItem('meetings', JSON.stringify(state.meetings));
+    localStorage.setItem('meetingResults', JSON.stringify(state.meetingResults));
+    localStorage.setItem('todos', JSON.stringify(state.todos));
+    localStorage.setItem('todoCompletions', JSON.stringify(state.todoCompletions));
+  } catch(e){}
+}
+
+// ============================================================
+// FIREBASE LOAD
+// ============================================================
+async function loadAll() {
+  try {
+    const [ptSnap, otSnap, compSnap, catSnap, holSnap, ovSnap, mtSnap, tdSnap, tdCmpSnap, mrSnap] = await Promise.all([
+      db.collection('periodicTasks').get(),
+      db.collection('oneTimeTasks').get(),
+      db.collection('completions').get(),
+      db.collection('settings').doc('categories').get(),
+      db.collection('settings').doc('holidays').get(),
+      db.collection('dateOverrides').get(),
+      db.collection('meetings').get(),
+      db.collection('todos').get(),
+      db.collection('todoCompletions').get(),
+      db.collection('meetingResults').get()
+    ]);
+    state.periodicTasks   = ptSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.oneTimeTasks    = otSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.completions     = compSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.dateOverrides   = ovSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.meetings        = mtSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.todos           = tdSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.todoCompletions = tdCmpSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    state.meetingResults  = mrSnap.docs.map(d => ({id: d.id, ...d.data()}));
+    if (catSnap.exists && catSnap.data().list) state.categories = catSnap.data().list;
+    if (holSnap.exists && holSnap.data().list) state.holidays   = holSnap.data().list;
+    renderAll();
+  } catch(e) {
+    console.error('Firebase load error:', e);
+    loadLocalData();
+  }
+}
+
+async function fbSave(collection, data, id) {
+  if (!db) { saveLocal(); return id || Date.now().toString(); }
+  try {
+    if (id) {
+      await db.collection(collection).doc(id).set(data, {merge: true});
+      return id;
+    } else {
+      const ref = await db.collection(collection).add(data);
+      return ref.id;
+    }
+  } catch(e) { saveLocal(); return id || Date.now().toString(); }
+}
+
+async function fbDelete(collection, id) {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection(collection).doc(id).delete(); }
+  catch(e) { saveLocal(); }
+}
+
+async function fbSaveCategories() {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection('settings').doc('categories').set({list: state.categories}); }
+  catch(e) { saveLocal(); }
+}
+
+// ============================================================
+// DATE UTILITIES
+// ============================================================
+const KOR_DAYS = ['일','월','화','수','목','금','토'];
+const WEEK_NAMES = ['첫째주','둘째주','셋째주','넷째주'];
+const MONTH_NAMES = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+function fmtDate(d) {
+  const y = d.getFullYear(), mo = d.getMonth(), dd = d.getDate(), dow = d.getDay();
+  const dayKor = KOR_DAYS[dow];
+  return `${y}년 ${mo+1}월 ${dd}일 (${dayKor})`;
+}
+
+function fmtDateShort(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
+
+function parseDateStr(s) {
+  if (!s) return null;
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y, m-1, d);
+}
+
+function getNthWeekdayOfMonth(date) {
+  return Math.ceil(date.getDate() / 7);
+}
+
+function getMonthInQuarter(month) { // 0-based
+  return (month % 3) + 1; // 1, 2, or 3
+}
+
+function daysBetween(d1, d2) {
+  return Math.floor((d2 - d1) / 86400000);
+}
+
+function isPeriodicDueOnDate(task, date) {
+  const dow = date.getDay();
+  const dateStr = fmtDateShort(date);
+
+  // 날짜 이동 Override 확인: 이 날짜로 이동된 업무 → 표시
+  const movedHere = state.dateOverrides.find(o => o.taskId === task.id && o.movedDate === dateStr);
+  if (movedHere) return true;
+
+  // 날짜 이동 Override 확인: 원래 날짜에서 다른 날로 이동된 경우 → 원래 날짜에서 숨김
+  const movedAway = state.dateOverrides.find(o => o.taskId === task.id && o.originalDate === dateStr);
+  if (movedAway) return false;
+
+  switch(task.cycleType) {
+    case '일일':
+      // 일일: 주말/휴일 제외 평일만 (holiday shift 없음 - 일일제외 조건)
+      return !isHoliday(date);
+
+    case '주간': {
+      // 선택된 각 요일에 대해 이번 주 자연 날짜 계산 후 휴일이면 다음 근무일로 이동
+      for (const dayKor of (task.weekDays || [])) {
+        const targetDow = KOR_DAY_TO_DOW[dayKor];
+        if (!targetDow) continue;
+        const naturalDate = getWeekdayInSameWeek(date, targetDow);
+        const effectiveDate = getEffectiveDate(naturalDate);
+        if (fmtDateShort(effectiveDate) === dateStr) return true;
+      }
+      return false;
+    }
+
+    case '월간': {
+      // 해당 월의 n번째 특정 요일 → 휴일이면 다음 근무일
+      const targetDow = KOR_DAY_TO_DOW[task.monthDay];
+      const nth = WEEK_NAMES.indexOf(task.monthWeek) + 1;
+      if (!targetDow || nth < 1) return false;
+      const naturalDate = getNthWeekdayDate(date.getFullYear(), date.getMonth(), targetDow, nth);
+      if (!naturalDate) return false;
+      const effectiveDate = getEffectiveDate(naturalDate);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    case '분기': {
+      // 분기 내 n월차의 n번째 주: 해당 주의 첫 번째 근무일에 표시
+      const qm = parseInt((task.quarterMonth||'').replace('월차',''));
+      const qw = WEEK_NAMES.indexOf(task.quarterWeek) + 1;
+      if (!qm || qw < 1) return false;
+      const miq = getMonthInQuarter(date.getMonth());
+      if (miq !== qm) return false;
+      // 해당 월의 qw번째 주 월요일 구하기
+      const weekMonday = getNthWeekStart(date.getFullYear(), date.getMonth(), qw);
+      if (!weekMonday) return false;
+      const effectiveDate = getEffectiveDate(weekMonday);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    case '연간': {
+      // 특정 월의 n번째 주: 해당 주의 첫 번째 근무일에 표시
+      const ym = parseInt((task.yearMonth||'').replace('월',''));
+      const yw = WEEK_NAMES.indexOf(task.yearWeek) + 1;
+      if (!ym || yw < 1) return false;
+      if (date.getMonth() + 1 !== ym) return false;
+      const weekMonday = getNthWeekStart(date.getFullYear(), date.getMonth(), yw);
+      if (!weekMonday) return false;
+      const effectiveDate = getEffectiveDate(weekMonday);
+      return fmtDateShort(effectiveDate) === dateStr;
+    }
+
+    default: return false;
+  }
+}
+
+// 해당 월의 n번째 주 월요일 구하기 (월의 1일 기준 7일 단위)
+function getNthWeekStart(year, month, nth) {
+  // 1번째 주: 1~7일, 2번째 주: 8~14일, ...
+  const startDay = (nth - 1) * 7 + 1;
+  if (startDay > new Date(year, month + 1, 0).getDate()) return null;
+  const d = new Date(year, month, startDay);
+  // 해당 주의 월요일 찾기
+  return getISOWeekMonday(d);
+}
+
+function getNextOccurrence(task, fromDate) {
+  const d = new Date(fromDate);
+  d.setDate(d.getDate() + 1);
+  for (let i = 0; i < 90; i++) {
+    if (isPeriodicDueOnDate(task, d)) return new Date(d);
+    d.setDate(d.getDate() + 1);
+  }
+  return null;
+}
+
+function isCompletedForDate(taskId, dateStr) {
+  return state.completions.some(c => c.taskId === taskId && c.date === dateStr);
+}
+
+function getCompletionForDate(taskId, dateStr) {
+  return state.completions.find(c => c.taskId === taskId && c.date === dateStr);
+}
+
+// ============================================================
+// HOLIDAY UTILITIES
+// ============================================================
+function isHoliday(date) {
+  const dow = date.getDay();
+  if (dow === 0 || dow === 6) return true; // 주말
+  const dateStr = fmtDateShort(date);
+  return state.holidays.some(h => (typeof h === 'string' ? h : h.date) === dateStr);
+}
+
+function getNextWorkday(date) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + 1);
+  let safety = 0;
+  while (isHoliday(d) && safety++ < 14) d.setDate(d.getDate() + 1);
+  return d;
+}
+
+function getEffectiveDate(naturalDate) {
+  if (isHoliday(naturalDate)) return getNextWorkday(naturalDate);
+  return new Date(naturalDate);
+}
+
+// ISO 주의 월요일 구하기
+function getISOWeekMonday(date) {
+  const d = new Date(date);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  d.setHours(0,0,0,0);
+  return d;
+}
+
+// 해당 주의 특정 요일 날짜 구하기 (targetDow: 1=Mon..5=Fri)
+function getWeekdayInSameWeek(date, targetDow) {
+  const monday = getISOWeekMonday(date);
+  const result = new Date(monday);
+  result.setDate(monday.getDate() + (targetDow - 1));
+  return result;
+}
+
+// 해당 월의 n번째 특정 요일 날짜 구하기
+function getNthWeekdayDate(year, month, targetDow, nth) {
+  // targetDow: 0=Sun,1=Mon,...
+  const d = new Date(year, month, 1);
+  let count = 0;
+  while (true) {
+    if (d.getDay() === targetDow) {
+      count++;
+      if (count === nth) return new Date(d);
+    }
+    d.setDate(d.getDate() + 1);
+    if (d.getMonth() !== month) break;
+  }
+  return null;
+}
+
+const KOR_DAY_TO_DOW = {'월':1,'화':2,'수':3,'목':4,'금':5};
+
+// ============================================================
+// RENDER ALL
+// ============================================================
+function renderAll() {
+  updateDateDisplay();
+  renderTodayTasks();
+  renderPeriodicList();
+  renderOneTimeList();
+  renderMeetingList();
+  renderTodoList();
+  renderCompleted();
+}
+
+function updateDateDisplay() {
+  document.getElementById('dateDisplay').textContent = fmtDate(state.currentDate);
+}
+
+function changeDate(delta) {
+  state.currentDate = new Date(state.currentDate);
+  state.currentDate.setDate(state.currentDate.getDate() + delta);
+  updateDateDisplay();
+  renderTodayTasks();
+}
+
+function goToday() {
+  state.currentDate = new Date();
+  updateDateDisplay();
+  renderTodayTasks();
+}
+
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  state.currentPage = id;
+  window.scrollTo(0, 0);
+}
+
+// ============================================================
+// TODAY TASKS RENDER
+// ============================================================
+function renderTodayTasks() {
+  const dateStr = fmtDateShort(state.currentDate);
+  const today = state.currentDate;
+  const now = new Date(); now.setHours(0,0,0,0);
+
+  // ── 오늘 회의 (최상단) ──
+  const todayMeetings = state.meetings.filter(m => {
+    if (m.type === '수시') return m.date === dateStr;
+    if (m.type === '정기') return isRegularMeetingDueOnDate(m, today);
+    return false;
+  });
+  todayMeetings.sort((a,b) => (a.order??0) - (b.order??0));
+
+  // ── 오늘 ToDo ──
+  const todayTodos = state.todos.filter(td => {
+    if (td.type === '수시') return td.date === dateStr;
+    if (td.type === '정기') return isTodoDueOnDate(td, today);
+    return false;
+  });
+  // 완료 항목은 맨 뒤, 그 외는 order 순
+  todayTodos.sort((a,b) => {
+    const aDone = a.type === '정기' ? isTodoCompletedForDate(a.id, dateStr) : a.status === '완료';
+    const bDone = b.type === '정기' ? isTodoCompletedForDate(b.id, dateStr) : b.status === '완료';
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return (a.order??0) - (b.order??0);
+  });
+
+  let todoHtml = '';
+  if (todayTodos.length > 0) {
+    todoHtml += '<div class="section-label">☑️ To Do (개인)</div>';
+    for (const td of todayTodos) {
+      // 완료 여부: 정기는 날짜별 기록, 수시는 todo.status
+      const done = td.type === '정기'
+        ? isTodoCompletedForDate(td.id, dateStr)
+        : td.status === '완료';
+
+      todoHtml += `
+        <div class="task-card ${done ? 'tl-completed' : ''}" style="border-left:3px solid ${done ? 'var(--border)' : 'var(--green)'}" onclick="openTodoForm(${JSON.stringify(td).replace(/"/g,'&quot;')})">
+          <div class="task-card-inner">
+            <div class="task-card-body">
+              <div class="task-card-content">
+                <div class="task-name" style="${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${td.name}</div>
+                <div class="task-meta">
+                  <span class="tag ${done ? 'tag-gray' : 'tag-green'}">${td.type||''}</span>
+                  ${td.type==='수시' && td.date ? `<span class="tag tag-gray">📅 ${td.date}</span>` : ''}
+                  ${td.cycle ? `<span class="tag tag-gray">${td.cycle === '일일' ? '매일' : td.cycle}</span>` : ''}
+                  <span class="sbadge ${done ? 's-완료' : 's-미완료'}">${done ? '완료' : '미완료'}</span>
+                </div>
+              </div>
+              <button class="status-change-btn" style="background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.25);color:var(--green)"
+                onclick="event.stopPropagation();completeTodo('${td.id}','${dateStr}')">
+                ${done ? '↩<br>취소' : '✅<br>완료'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  let meetingHtml = '';
+  if (todayMeetings.length > 0) {
+    meetingHtml += '<div class="section-label">🗣 오늘 회의</div>';
+    for (const m of todayMeetings) {
+      const cycleInfo = m.type === '정기'
+        ? (m.cycle === '주간' ? `주간(${(m.weekDays||[]).join(',')})` : m.cycle === '월간' ? `월간(${m.weekNum||''} ${m.weekDayMonth||''})` : '')
+        : '';
+      meetingHtml += `
+        <div class="task-card tl-meeting" style="border-left:3px solid var(--purple)" onclick="openMeetingForm(${JSON.stringify(m).replace(/"/g,'&quot;')})">
+          <div class="task-card-inner">
+            <div class="task-card-body">
+              <div class="task-card-content">
+                <div class="task-name">${m.name}</div>
+                <div class="task-meta">
+                  <span class="tag tag-purple">${m.type||'회의'}${cycleInfo ? ' · '+cycleInfo : ''}</span>
+                  <span class="tag tag-gray">⏰ ${m.time || '시간 미정'}</span>
+                  <span class="tag tag-gray">📍 ${m.place || '장소 미정'}</span>
+                  ${m.hostDept ? `<span class="tag tag-gray">${m.hostDept}</span>` : ''}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    }
+  }
+
+  let tasks = [];
+
+  // Periodic tasks due today
+  for (const t of state.periodicTasks) {
+    if (isPeriodicDueOnDate(t, today)) {
+      const done = isCompletedForDate(t.id, dateStr);
+      const comp = getCompletionForDate(t.id, dateStr);
+      tasks.push({
+        id: t.id, name: t.name, type: 'periodic',
+        cycleType: t.cycleType, memo: t.memo,
+        status: comp ? comp.status : '미완료',
+        isOverdue: false, isPeriodicSoon: false,
+        imp: 'C', urg: 'C', requestedDate: null, plannedDate: null,
+        _raw: t
+      });
+    }
+  }
+
+  // One-time tasks (not completed)
+  for (const t of state.oneTimeTasks) {
+    if (t.status === '완료') continue;
+    const reqDate = parseDateStr(t.requestedDate);
+    const planDate = parseDateStr(t.plannedDate);
+    const dueDate = reqDate || planDate;
+    if (!dueDate) continue;
+
+    const isOverdue = dueDate < now;
+    const daysLeft = daysBetween(now, dueDate);
+
+    tasks.push({
+      id: t.id, name: t.name, type: 'oneTime',
+      status: t.status, category: t.category,
+      imp: t.importance || 'C', urg: t.urgency || 'C',
+      requestedDate: t.requestedDate, plannedDate: t.plannedDate,
+      daysLeft, isOverdue, isPeriodicSoon: false, _raw: t
+    });
+  }
+
+  // Monthly/quarterly/yearly tasks starting within 7 days
+  for (const t of state.periodicTasks) {
+    if (!['월간','분기','연간'].includes(t.cycleType)) continue;
+    if (isPeriodicDueOnDate(t, today)) continue; // already in list
+    const next = getNextOccurrence(t, today);
+    if (next && daysBetween(today, next) <= 7) {
+      const done = isCompletedForDate(t.id, fmtDateShort(next));
+      tasks.push({
+        id: t.id + '_soon', name: t.name, type: 'periodic_soon',
+        cycleType: t.cycleType, memo: t.memo,
+        status: done ? '완료' : '예정',
+        isOverdue: false, isPeriodicSoon: true,
+        imp: 'C', urg: 'C', nextDate: next,
+        _raw: t
+      });
+    }
+  }
+
+  // Sort: 그룹 → 완료 여부(완료는 맨 뒤) → order → 기존 기준
+  tasks.sort((a, b) => {
+    const grpA = getSortGroup(a);
+    const grpB = getSortGroup(b);
+    if (grpA !== grpB) return grpA - grpB;
+    // 완료/미수행 항목은 그룹 내 맨 뒤
+    const aDone = (a.status === '완료' || a.status === '미수행') ? 1 : 0;
+    const bDone = (b.status === '완료' || b.status === '미수행') ? 1 : 0;
+    if (aDone !== bDone) return aDone - bDone;
+    // 그룹 내에서 order 기준 (order 없으면 기존 기준)
+    const oA = a._raw?.order ?? null;
+    const oB = b._raw?.order ?? null;
+    if (oA !== null && oB !== null) return oA - oB;
+    const impScore = (x) => ({'A':0,'B':1,'C':2}[x] ?? 2);
+    const scoreA = impScore(a.imp) * 3 + impScore(a.urg);
+    const scoreB = impScore(b.imp) * 3 + impScore(b.urg);
+    if (scoreA !== scoreB) return scoreA - scoreB;
+    const dA = a.daysLeft ?? 999;
+    const dB = b.daysLeft ?? 999;
+    return dA - dB;
+  });
+
+  const cont = document.getElementById('todayTaskContainer');
+  if (tasks.length === 0 && todayMeetings.length === 0 && todayTodos.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">🎉</div><div class="empty-txt">오늘 예정된 업무가 없습니다</div></div>';
+    return;
+  }
+
+  // 그룹별로 묶어서 index 계산
+  const groupedTasks = {};
+  for (const task of tasks) {
+    const grp = getSortGroup(task);
+    if (!groupedTasks[grp]) groupedTasks[grp] = [];
+    groupedTasks[grp].push(task);
+  }
+
+  // 회의 섹션 ▲▼ 버튼 재생성
+  let meetingHtmlFinal = '';
+  if (todayMeetings.length > 0) {
+    meetingHtmlFinal += '<div class="section-label">🗣 오늘 회의</div>';
+    todayMeetings.forEach((m, i) => {
+      const cycleInfo = m.type === '정기'
+        ? (m.cycle === '주간' ? `주간(${(m.weekDays||[]).join(',')})` : m.cycle === '월간' ? `월간(${m.weekNum||''} ${m.weekDayMonth||''})` : '')
+        : '';
+      const mr = state.meetingResults.find(r => r.meetingId === m.id && r.date === dateStr);
+      const statusBadge = mr
+        ? `<span class="sbadge ${mr.status==='참석완료'?'s-완료':mr.status==='취소'?'s-미수행':'s-미수행'}" style="${mr.status==='미참석'?'background:rgba(248,81,73,.12);color:var(--red)':''}">${mr.status}</span>`
+        : '';
+      meetingHtmlFinal += `
+        <div class="task-card" style="border-left:3px solid var(--purple)${mr?';opacity:'+( mr.status==='취소'?'0.5':'1'):''}">
+          <div class="task-card-inner">
+            <div class="task-card-body">
+              <div class="task-card-content" onclick="openMeetingForm(${JSON.stringify(m).replace(/"/g,'&quot;')})">
+                <div class="task-name">${m.name}</div>
+                <div class="task-meta">
+                  <span class="tag tag-purple">${m.type||'회의'}${cycleInfo ? ' · '+cycleInfo : ''}</span>
+                  <span class="tag tag-gray">⏰ ${m.time || '시간 미정'}</span>
+                  <span class="tag tag-gray">📍 ${m.place || '장소 미정'}</span>
+                  ${m.hostDept ? `<span class="tag tag-gray">${m.hostDept}</span>` : ''}
+                  ${statusBadge}
+                </div>
+              </div>
+              <button class="status-change-btn" onclick="event.stopPropagation();openMeetingStatusModal('${m.id}','${dateStr}','${m.name}')">⚡<br>현황</button>
+              <div class="sort-btns">
+                <button class="sort-btn" ${i===0?'disabled':''} onclick="event.stopPropagation();moveMainMeeting('${m.id}','up')">▲</button>
+                <button class="sort-btn" ${i===todayMeetings.length-1?'disabled':''} onclick="event.stopPropagation();moveMainMeeting('${m.id}','down')">▼</button>
+              </div>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  // ToDo 섹션 ▲▼ 버튼 재생성
+  let todoHtmlFinal = '';
+  if (todayTodos.length > 0) {
+    todoHtmlFinal += '<div class="section-label">☑️ To Do (개인)</div>';
+    todayTodos.forEach((td, i) => {
+      const done = td.type === '정기' ? isTodoCompletedForDate(td.id, dateStr) : td.status === '완료';
+      todoHtmlFinal += `
+        <div class="task-card ${done ? 'tl-completed' : ''}" style="border-left:3px solid ${done ? 'var(--border)' : 'var(--green)'}" onclick="openTodoForm(${JSON.stringify(td).replace(/"/g,'&quot;')})">
+          <div class="task-card-inner">
+            <div class="task-card-body">
+              <div class="task-card-content">
+                <div class="task-name" style="${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${td.name}</div>
+                <div class="task-meta">
+                  <span class="tag ${done ? 'tag-gray' : 'tag-green'}">${td.type||''}</span>
+                  ${td.type==='수시' && td.date ? `<span class="tag tag-gray">📅 ${td.date}</span>` : ''}
+                  ${td.cycle ? `<span class="tag tag-gray">${td.cycle === '일일' ? '매일' : td.cycle}</span>` : ''}
+                  <span class="sbadge ${done ? 's-완료' : 's-미완료'}">${done ? '완료' : '미완료'}</span>
+                </div>
+              </div>
+              <div class="sort-btns">
+                <button class="sort-btn" ${i===0?'disabled':''} onclick="event.stopPropagation();moveMainTodo('${td.id}','up')">▲</button>
+                <button class="sort-btn" ${i===todayTodos.length-1?'disabled':''} onclick="event.stopPropagation();moveMainTodo('${td.id}','down')">▼</button>
+              </div>
+              <button class="status-change-btn"
+                style="${done
+                  ? 'background:rgba(139,148,158,.1);border-color:rgba(139,148,158,.25);color:var(--text2)'
+                  : 'background:rgba(63,185,80,.1);border-color:rgba(63,185,80,.25);color:var(--green)'}"
+                onclick="event.stopPropagation();completeTodo('${td.id}','${dateStr}')">
+                ${done ? '↩<br>취소' : '✅<br>완료'}
+              </button>
+            </div>
+          </div>
+        </div>`;
+    });
+  }
+
+  let html = meetingHtmlFinal + todoHtmlFinal;
+  const groupLabels = {0:'⚠️ 기한 초과',1:'🔄 주기업무 (일일·주간)',2:'📅 주기업무 (월간·분기·연간) — 1주일 이내',3:'🔥 중요·긴급 우선',4:'⏰ 완료기한 임박'};
+
+  for (const grp of [0,1,2,3,4]) {
+    const grpTasks = groupedTasks[grp];
+    if (!grpTasks || grpTasks.length === 0) continue;
+    if (grp in groupLabels) html += `<div class="section-label">${groupLabels[grp]}</div>`;
+    grpTasks.forEach((task, i) => {
+      html += renderTaskCard(task, dateStr, i === 0, i === grpTasks.length - 1, grp);
+    });
+  }
+
+  cont.innerHTML = `<div class="task-list">${html}</div>`;
+}
+
+function getSortGroup(task) {
+  if (task.isOverdue) return 0;
+  if (task.type === 'periodic' && ['일일','주간'].includes(task.cycleType)) return 1;
+  if (task.isPeriodicSoon) return 2;
+  const imp = task.imp || 'C', urg = task.urg || 'C';
+  if ((imp === 'A' || imp === 'B') && (urg === 'A' || urg === 'B')) return 3;
+  return 4;
+}
+
+function renderTaskCard(task, dateStr, isFirst=false, isLast=false, grp=4) {
+  const done = task.status === '완료' || task.status === '미수행';
+  let borderClass = 'tl-normal';
+  if (task.isOverdue) borderClass = 'tl-overdue';
+  else if (task.type === 'periodic' || task.type === 'periodic_soon') borderClass = 'tl-periodic';
+  else if (task.imp === 'A' || task.urg === 'A') borderClass = 'tl-warn';
+
+  let badges = '';
+  if (task.type === 'periodic' || task.type === 'periodic_soon') {
+    badges += `<span class="tag tag-blue">${task.cycleType}</span>`;
+    if (task.isPeriodicSoon && task.nextDate) {
+      badges += `<span class="tag tag-accent">${fmtDateShort(task.nextDate)} 예정</span>`;
+    }
+  } else {
+    if (task.category) badges += `<span class="tag tag-gray">${task.category}</span>`;
+    if (task.imp) badges += `<span class="tag ${task.imp==='A'?'tag-red':task.imp==='B'?'tag-orange':'tag-green'}">중요${task.imp}</span>`;
+    if (task.urg) badges += `<span class="tag ${task.urg==='A'?'tag-red':task.urg==='B'?'tag-orange':'tag-green'}">긴급${task.urg}</span>`;
+    if (task.isOverdue) badges += `<span class="tag tag-red">D+${Math.abs(task.daysLeft)}일 초과</span>`;
+    else if (task.daysLeft <= 3) badges += `<span class="tag tag-orange">D-${task.daysLeft}</span>`;
+    else if (task.daysLeft !== undefined) badges += `<span class="tag tag-gray">D-${task.daysLeft}</span>`;
+  }
+
+  const statusBadge = task.status ? `<span class="sbadge s-${task.status}">${task.status}</span>` : '';
+  const cardClass = done ? 'tl-completed' : '';
+  const collection = (task.type === 'periodic' || task.type === 'periodic_soon') ? 'periodicTasks' : 'oneTimeTasks';
+  const realId = task.id.replace('_soon','');
+  const tid = `card-${task.id.replace(/[^a-z0-9]/gi,'_')}`;
+
+  return `
+    <div class="task-card ${borderClass} ${cardClass}" id="${tid}"
+      data-id="${task.id}" data-type="${task.type}" data-date="${dateStr}">
+      <div class="task-card-inner">
+        <div class="task-card-body">
+          <div class="task-card-content" onclick="onCardClick('${task.id}','${task.type}')">
+            <div class="task-name">${task.name}</div>
+            <div class="task-meta">${badges}${statusBadge}</div>
+          </div>
+          <button class="gcal-btn" onclick="sendToGCal_card('${task.id}','${task.type}','${dateStr}')">📅<br>캘린더</button>
+          <button class="status-change-btn" onclick="openStatusFromCard('${task.id}','${task.type}','${dateStr}')">⚡<br>현황</button>
+          <div class="sort-btns">
+            <button class="sort-btn" ${isFirst?'disabled':''} onclick="event.stopPropagation();moveMainCard('${realId}','${collection}',${grp},'up')">▲</button>
+            <button class="sort-btn" ${isLast?'disabled':''} onclick="event.stopPropagation();moveMainCard('${realId}','${collection}',${grp},'down')">▼</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function onCardClick(id, type) {
+  if (type === 'periodic' || type === 'periodic_soon') {
+    const task = state.periodicTasks.find(t => t.id === id || t.id + '_soon' === id);
+    if (task) openPeriodicForm(task);
+  } else {
+    const task = state.oneTimeTasks.find(t => t.id === id);
+    if (task) openOneTimeForm(task);
+  }
+}
+
+function openStatusFromCard(id, type, dateStr) {
+  const realId = id.replace('_soon','');
+  state._statusTarget = {id: realId, type, dateStr};
+  // 주기업무는 날짜 지정 가능
+  const dateRow = document.getElementById('statusDateRow');
+  const dateInput = document.getElementById('statusDateInput');
+  if (type === 'periodic' || type === 'periodic_soon') {
+    dateRow.style.display = 'block';
+    dateInput.value = dateStr;
+  } else {
+    dateRow.style.display = 'none';
+  }
+  document.getElementById('statusOverlay').classList.add('active');
+}
+
+async function setStatus(status) {
+  const {id, type} = state._statusTarget || {};
+  if (!id) return;
+
+  // 날짜: 주기업무는 날짜 지정 입력값 우선
+  const dateRow = document.getElementById('statusDateRow');
+  const dateInput = document.getElementById('statusDateInput');
+  const originalDate = state._statusTarget.dateStr;
+  const movedDate = (dateRow.style.display !== 'none' && dateInput.value)
+    ? dateInput.value
+    : originalDate;
+
+  closeStatusOverlay();
+
+  if (type === 'periodic' || type === 'periodic_soon') {
+
+    // ── 날짜가 변경된 경우: dateOverride 처리 ──
+    if (movedDate !== originalDate) {
+      // 기존 override 중 같은 originalDate 것 삭제
+      const existingOv = state.dateOverrides.find(o => o.taskId === id && o.originalDate === originalDate);
+      if (existingOv) {
+        await fbDelete('dateOverrides', existingOv.id);
+        state.dateOverrides = state.dateOverrides.filter(o => o.id !== existingOv.id);
+      }
+      // 새 override 생성
+      const ovData = {taskId: id, originalDate, movedDate};
+      const ovId = await fbSave('dateOverrides', ovData, null);
+      state.dateOverrides.push({id: ovId, ...ovData});
+
+      // 기존 originalDate의 completion 기록 삭제
+      const oldComp = state.completions.find(c => c.taskId === id && c.date === originalDate);
+      if (oldComp) {
+        await fbDelete('completions', oldComp.id);
+        state.completions = state.completions.filter(c => c.id !== oldComp.id);
+      }
+    }
+
+    // ── 이동된 날짜(movedDate)에 현황 저장 ──
+    const exists = state.completions.find(c => c.taskId === id && c.date === movedDate);
+    if (status === '미완료') {
+      // 기록 삭제 (override도 함께 제거)
+      if (exists) {
+        await fbDelete('completions', exists.id);
+        state.completions = state.completions.filter(c => c.id !== exists.id);
+      }
+      if (movedDate !== originalDate) {
+        const ov = state.dateOverrides.find(o => o.taskId === id && o.movedDate === movedDate);
+        if (ov) {
+          await fbDelete('dateOverrides', ov.id);
+          state.dateOverrides = state.dateOverrides.filter(o => o.id !== ov.id);
+        }
+      }
+    } else {
+      const comp = {taskId: id, taskType: 'periodic', date: movedDate, status};
+      if (exists) {
+        exists.status = status;
+        await fbSave('completions', comp, exists.id);
+      } else {
+        const newId = await fbSave('completions', comp, null);
+        state.completions.push({id: newId, ...comp});
+      }
+    }
+
+  } else {
+    // 일회성업무
+    const task = state.oneTimeTasks.find(t => t.id === id);
+    if (task) {
+      task.status = status;
+      if (status === '완료') task.completedDate = movedDate;
+      await fbSave('oneTimeTasks', task, id);
+    }
+  }
+
+  saveLocal();
+  renderTodayTasks();
+  const msg = movedDate !== originalDate
+    ? `[${status}] — ${originalDate} → ${movedDate} 로 이동되었습니다`
+    : `현황이 [${status}]로 변경되었습니다`;
+  showToast(msg);
+}
+
+function closeStatusOverlay() {
+  document.getElementById('statusOverlay').classList.remove('active');
+}
+
+// ============================================================
+// LIST ORDER MANAGEMENT
+// ============================================================
+
+// order 필드가 없으면 index로 초기화
+function ensureOrder(arr) {
+  let changed = false;
+  arr.forEach((item, i) => {
+    if (item.order === undefined || item.order === null) {
+      item.order = i;
+      changed = true;
+    }
+  });
+  return changed;
+}
+
+// 배열 내 특정 id 아이템을 위/아래로 이동
+function moveItem(arr, id, dir) {
+  // order 기준 정렬된 복사본
+  const sorted = [...arr].sort((a,b) => (a.order??0) - (b.order??0));
+  const idx = sorted.findIndex(x => x.id === id);
+  if (idx < 0) return false;
+  const target = dir === 'up' ? idx - 1 : idx + 1;
+  if (target < 0 || target >= sorted.length) return false;
+  // order 값 교환
+  const tmpOrder = sorted[idx].order;
+  sorted[idx].order = sorted[target].order;
+  sorted[target].order = tmpOrder;
+  // 원본 배열에 반영
+  arr.forEach(item => {
+    const match = sorted.find(s => s.id === item.id);
+    if (match) item.order = match.order;
+  });
+  return true;
+}
+
+// 이동 후 Firebase 저장 (변경된 두 아이템만)
+async function saveOrderChange(collection, arr, id1, id2) {
+  const item1 = arr.find(x => x.id === id1);
+  const item2 = arr.find(x => x.id === id2);
+  const saves = [];
+  if (item1) saves.push(fbSave(collection, {order: item1.order}, id1));
+  if (item2) saves.push(fbSave(collection, {order: item2.order}, id2));
+  await Promise.all(saves);
+  saveLocal();
+}
+
+// 정렬 버튼 HTML 생성
+function sortBtnsHtml(collection, id, isFirst, isLast) {
+  return `<div class="sort-btns">
+    <button class="sort-btn" ${isFirst ? 'disabled' : ''} onclick="event.stopPropagation();moveListItem('${collection}','${id}','up')">▲</button>
+    <button class="sort-btn" ${isLast ? 'disabled' : ''} onclick="event.stopPropagation();moveListItem('${collection}','${id}','down')">▼</button>
+  </div>`;
+}
+
+// 통합 이동 핸들러
+async function moveListItem(collection, id, dir) {
+  const arrMap = {
+    periodicTasks: state.periodicTasks,
+    oneTimeTasks:  state.oneTimeTasks,
+    meetings:      state.meetings,
+    todos:         state.todos,
+  };
+  const arr = arrMap[collection];
+  if (!arr) return;
+
+  // 일회성업무: 현재 필터 기준 subset 내에서만 이동
+  let subset = arr;
+  if (collection === 'oneTimeTasks') {
+    subset = arr.filter(t => t.status !== '완료' && t.status !== '미수행');
+    if (state.oneTimeFilter !== 'all') subset = subset.filter(t => t.category === state.oneTimeFilter);
+  }
+  if (collection === 'meetings' && state.meetingFilter !== 'all') {
+    subset = arr.filter(m => m.type === state.meetingFilter);
+  }
+  if (collection === 'todos') {
+    if (state.todoFilter === '수시')   subset = arr.filter(t => t.type === '수시');
+    else if (state.todoFilter === '정기')   subset = arr.filter(t => t.type === '정기');
+    else if (state.todoFilter === '미완료') subset = arr.filter(t => t.status !== '완료');
+    else if (state.todoFilter === '완료')   subset = arr.filter(t => t.status === '완료');
+    else subset = arr;
+  }
+
+  ensureOrder(subset);
+  const sorted = [...subset].sort((a,b) => (a.order??0) - (b.order??0));
+  const idx = sorted.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const target = dir === 'up' ? idx - 1 : idx + 1;
+  if (target < 0 || target >= sorted.length) return;
+
+  const id1 = sorted[idx].id;
+  const id2 = sorted[target].id;
+  const tmp = sorted[idx].order;
+  sorted[idx].order = sorted[target].order;
+  sorted[target].order = tmp;
+
+  // 원본 배열에 반영
+  arr.forEach(item => {
+    const match = sorted.find(s => s.id === item.id);
+    if (match !== undefined) item.order = match.order;
+  });
+
+  await saveOrderChange(collection, arr, id1, id2);
+
+  // 해당 List만 재렌더
+  const renderMap = {
+    periodicTasks: renderPeriodicList,
+    oneTimeTasks:  renderOneTimeList,
+    meetings:      renderMeetingList,
+    todos:         renderTodoList,
+  };
+  if (renderMap[collection]) renderMap[collection]();
+}
+
+// 메인화면 ToDo 이동 — 오늘 표시 중인 항목 기준
+async function moveMainTodo(id, dir) {
+  const dateStr = fmtDateShort(state.currentDate);
+  const today = state.currentDate;
+
+  // 오늘 표시되는 ToDo 목록 (완료 여부 기반 정렬 포함)
+  let list = state.todos.filter(td => {
+    if (td.type === '수시') return td.date === dateStr;
+    if (td.type === '정기') return isTodoDueOnDate(td, today);
+    return false;
+  });
+  list.sort((a, b) => {
+    const aDone = a.type === '정기' ? isTodoCompletedForDate(a.id, dateStr) : a.status === '완료';
+    const bDone = b.type === '정기' ? isTodoCompletedForDate(b.id, dateStr) : b.status === '완료';
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+
+  ensureOrder(list);
+  const idx = list.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const tgt = dir === 'up' ? idx - 1 : idx + 1;
+  if (tgt < 0 || tgt >= list.length) return;
+
+  const tmp = list[idx].order;
+  list[idx].order = list[tgt].order;
+  list[tgt].order = tmp;
+
+  // 원본 state.todos에 반영
+  list.forEach(item => {
+    const orig = state.todos.find(t => t.id === item.id);
+    if (orig) orig.order = item.order;
+  });
+
+  await saveOrderChange('todos', state.todos, list[idx].id, list[tgt].id);
+  renderTodayTasks();
+}
+
+// 메인화면 Meeting 이동 — 오늘 표시 중인 항목 기준
+async function moveMainMeeting(id, dir) {
+  const dateStr = fmtDateShort(state.currentDate);
+  const today = state.currentDate;
+
+  let list = state.meetings.filter(m => {
+    if (m.type === '수시') return m.date === dateStr;
+    if (m.type === '정기') return isRegularMeetingDueOnDate(m, today);
+    return false;
+  });
+  list.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+
+  ensureOrder(list);
+  const idx = list.findIndex(x => x.id === id);
+  if (idx < 0) return;
+  const tgt = dir === 'up' ? idx - 1 : idx + 1;
+  if (tgt < 0 || tgt >= list.length) return;
+
+  const tmp = list[idx].order;
+  list[idx].order = list[tgt].order;
+  list[tgt].order = tmp;
+
+  list.forEach(item => {
+    const orig = state.meetings.find(m => m.id === item.id);
+    if (orig) orig.order = item.order;
+  });
+
+  await saveOrderChange('meetings', state.meetings, list[idx].id, list[tgt].id);
+  renderTodayTasks();
+}
+
+// 메인화면 카드 그룹 내 이동
+async function moveMainCard(taskId, collection, grp, dir) {
+  const arr = collection === 'periodicTasks' ? state.periodicTasks : state.oneTimeTasks;
+  const today = state.currentDate;
+  const dateStr = fmtDateShort(today);
+  const now = new Date(); now.setHours(0,0,0,0);
+
+  let grpTasks = [];
+  if (collection === 'periodicTasks') {
+    for (const t of state.periodicTasks) {
+      if (!isPeriodicDueOnDate(t, today)) continue;
+      const comp = getCompletionForDate(t.id, dateStr);
+      const obj = {id: t.id, type:'periodic', cycleType:t.cycleType,
+        isOverdue:false, isPeriodicSoon:false, imp:'C', urg:'C',
+        status: comp ? comp.status : '미완료', _raw: t};
+      if (getSortGroup(obj) === grp) grpTasks.push({id: t.id, order: t.order??0, ref: t});
+    }
+    for (const t of state.periodicTasks) {
+      if (!['월간','분기','연간'].includes(t.cycleType)) continue;
+      if (isPeriodicDueOnDate(t, today)) continue;
+      const next = getNextOccurrence(t, today);
+      if (!next || daysBetween(today, next) > 7) continue;
+      const obj = {id: t.id+'_soon', type:'periodic_soon', cycleType:t.cycleType,
+        isOverdue:false, isPeriodicSoon:true, imp:'C', urg:'C'};
+      if (getSortGroup(obj) === grp) grpTasks.push({id: t.id, order: t.order??0, ref: t});
+    }
+  } else {
+    for (const t of state.oneTimeTasks) {
+      if (t.status === '완료') continue;
+      const reqDate = parseDateStr(t.requestedDate);
+      const planDate = parseDateStr(t.plannedDate);
+      const dueDate = reqDate || planDate;
+      if (!dueDate) continue;
+      const isOverdue = dueDate < now;
+      const daysLeft = daysBetween(now, dueDate);
+      const obj = {id: t.id, type:'oneTime', imp:t.importance||'C', urg:t.urgency||'C',
+        isOverdue, isPeriodicSoon:false, daysLeft};
+      if (getSortGroup(obj) === grp) grpTasks.push({id: t.id, order: t.order??0, ref: t});
+    }
+  }
+
+  grpTasks.sort((a,b) => a.order - b.order);
+  const idx = grpTasks.findIndex(x => x.id === taskId);
+  if (idx < 0) return;
+  const tgt = dir === 'up' ? idx - 1 : idx + 1;
+  if (tgt < 0 || tgt >= grpTasks.length) return;
+
+  const tmp = grpTasks[idx].order;
+  grpTasks[idx].order = grpTasks[tgt].order;
+  grpTasks[tgt].order = tmp;
+  grpTasks.forEach(gt => { gt.ref.order = gt.order; });
+
+  await saveOrderChange(collection, arr, grpTasks[idx].id, grpTasks[tgt].id);
+  renderTodayTasks();
+}
+
+// ============================================================
+// PERIODIC LIST
+// ============================================================
+function renderPeriodicList() {
+  const cont = document.getElementById('periodicList');
+  if (state.periodicTasks.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">🔄</div><div class="empty-txt">등록된 주기업무가 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+  ensureOrder(state.periodicTasks);
+  const sorted = [...state.periodicTasks].sort((a,b) => (a.order??0) - (b.order??0));
+  cont.innerHTML = sorted.map((t, i) => {
+    const criteriaLabel = getCriteriaLabel(t);
+    return `
+      <div class="list-item" style="padding:12px 14px">
+        <div class="list-item-row">
+          <div class="list-item-content" onclick='openPeriodicForm(${JSON.stringify(t)})'>
+            <div class="li-name">${t.name}</div>
+            <div class="li-meta">
+              <span class="tag tag-blue">${t.cycleType}</span>
+              ${criteriaLabel ? `<span class="tag tag-gray">${criteriaLabel}</span>` : ''}
+              ${t.memo ? `<span class="tag tag-gray" style="max-width:100px;overflow:hidden;text-overflow:ellipsis">${t.memo}</span>` : ''}
+            </div>
+          </div>
+          ${sortBtnsHtml('periodicTasks', t.id, i===0, i===sorted.length-1)}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function getCriteriaLabel(t) {
+  switch(t.cycleType) {
+    case '일일': return '매 평일';
+    case '주간': return (t.weekDays||[]).join(', ');
+    case '월간': return `${t.monthWeek||''} ${t.monthDay||''}`;
+    case '분기': return `${t.quarterMonth||''} ${t.quarterWeek||''}`;
+    case '연간': return `${t.yearMonth||''} ${t.yearWeek||''}`;
+    default: return '';
+  }
+}
+
+// ============================================================
+// PERIODIC FORM
+// ============================================================
+function openPeriodicForm(task) {
+  state.currentCycle = task?.cycleType || '';
+  document.getElementById('pName').value = task?.name || '';
+  document.getElementById('pMemo').value = task?.memo || '';
+  document.getElementById('pEditId').value = task?.id || '';
+  document.getElementById('pDeleteBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('pGcalBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('periodicModalTitle').textContent = task ? '주기업무 수정' : '주기업무 추가';
+
+  // Reset cycle buttons
+  document.querySelectorAll('#pCycleType .opt-btn').forEach(b => b.classList.remove('sel'));
+  if (task?.cycleType) {
+    document.querySelectorAll('#pCycleType .opt-btn').forEach(b => {
+      if (b.textContent === task.cycleType) b.classList.add('sel');
+    });
+    renderCycleFields(task.cycleType, task);
+  } else {
+    document.getElementById('pCycleFields').innerHTML = '';
+  }
+  openModal('modalPeriodic');
+}
+
+function selectCycle(btn, cycle) {
+  document.querySelectorAll('#pCycleType .opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  state.currentCycle = cycle;
+  renderCycleFields(cycle, null);
+}
+
+function renderCycleFields(cycle, task) {
+  const el = document.getElementById('pCycleFields');
+  if (cycle === '일일') { el.innerHTML = '<div class="form-note" style="margin-bottom:12px;color:var(--text2)">💡 매 평일(월~금) 반복됩니다.</div>'; return; }
+  if (cycle === '주간') {
+    const days = ['월','화','수','목','금'];
+    const sel = task?.weekDays || [];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">수행 요일 (복수 선택 가능)</label>
+      <div class="opt-group" id="pWeekDays">
+        ${days.map(d => `<button class="opt-btn ${sel.includes(d)?'sel':''}" onclick="toggleWeekDay(this,'${d}')">${d}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '월간') {
+    const weeks = WEEK_NAMES, days2 = ['월','화','수','목','금'];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pMonthWeek">
+        ${weeks.map(w => `<button class="opt-btn ${task?.monthWeek===w?'sel':''}" onclick="pickOne(this,'pMonthWeek','${w}')">${w}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">요일</label>
+      <div class="opt-group" id="pMonthDay">
+        ${days2.map(d => `<button class="opt-btn ${task?.monthDay===d?'sel':''}" onclick="pickOne(this,'pMonthDay','${d}')">${d}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '분기') {
+    const qms = ['1월차','2월차','3월차'];
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">분기 내 월</label>
+      <div class="opt-group" id="pQMonth">
+        ${qms.map(m => `<button class="opt-btn ${task?.quarterMonth===m?'sel':''}" onclick="pickOne(this,'pQMonth','${m}')">${m}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pQWeek">
+        ${WEEK_NAMES.map(w => `<button class="opt-btn ${task?.quarterWeek===w?'sel':''}" onclick="pickOne(this,'pQWeek','${w}')">${w}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+  if (cycle === '연간') {
+    el.innerHTML = `<div class="form-group">
+      <label class="form-label">월</label>
+      <div class="opt-group" id="pYMonth" style="flex-wrap:wrap">
+        ${MONTH_NAMES.map(m => `<button class="opt-btn ${task?.yearMonth===m?'sel':''}" onclick="pickOne(this,'pYMonth','${m}')">${m}</button>`).join('')}
+      </div></div>
+      <div class="form-group">
+      <label class="form-label">주차</label>
+      <div class="opt-group" id="pYWeek">
+        ${WEEK_NAMES.map(w => `<button class="opt-btn ${task?.yearWeek===w?'sel':''}" onclick="pickOne(this,'pYWeek','${w}')">${w}</button>`).join('')}
+      </div></div>`;
+    return;
+  }
+}
+
+function toggleWeekDay(btn, day) {
+  btn.classList.toggle('sel');
+}
+
+function pickOne(btn, groupId, val) {
+  document.querySelectorAll(`#${groupId} .opt-btn`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+}
+
+async function savePeriodicTask() {
+  const name = document.getElementById('pName').value.trim();
+  if (!name) { showToast('업무명을 입력하세요'); return; }
+  if (!state.currentCycle) { showToast('주기 유형을 선택하세요'); return; }
+
+  const task = { name, cycleType: state.currentCycle, memo: document.getElementById('pMemo').value.trim() };
+
+  if (state.currentCycle === '주간') {
+    task.weekDays = [...document.querySelectorAll('#pWeekDays .opt-btn.sel')].map(b => b.textContent);
+    if (!task.weekDays.length) { showToast('요일을 선택하세요'); return; }
+  }
+  if (state.currentCycle === '월간') {
+    task.monthWeek = document.querySelector('#pMonthWeek .opt-btn.sel')?.textContent || '';
+    task.monthDay = document.querySelector('#pMonthDay .opt-btn.sel')?.textContent || '';
+    if (!task.monthWeek || !task.monthDay) { showToast('주차와 요일을 선택하세요'); return; }
+  }
+  if (state.currentCycle === '분기') {
+    task.quarterMonth = document.querySelector('#pQMonth .opt-btn.sel')?.textContent || '';
+    task.quarterWeek = document.querySelector('#pQWeek .opt-btn.sel')?.textContent || '';
+    if (!task.quarterMonth || !task.quarterWeek) { showToast('월차와 주차를 선택하세요'); return; }
+  }
+  if (state.currentCycle === '연간') {
+    task.yearMonth = document.querySelector('#pYMonth .opt-btn.sel')?.textContent || '';
+    task.yearWeek = document.querySelector('#pYWeek .opt-btn.sel')?.textContent || '';
+    if (!task.yearMonth || !task.yearWeek) { showToast('월과 주차를 선택하세요'); return; }
+  }
+
+  const editId = document.getElementById('pEditId').value;
+  if (editId) {
+    const idx = state.periodicTasks.findIndex(t => t.id === editId);
+    if (idx >= 0) { state.periodicTasks[idx] = {id: editId, ...task}; }
+    await fbSave('periodicTasks', task, editId);
+    showToast('주기업무가 수정되었습니다');
+  } else {
+    task.createdAt = new Date().toISOString();
+    const newId = await fbSave('periodicTasks', task, null);
+    state.periodicTasks.push({id: newId, ...task});
+    showToast('주기업무가 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalPeriodic');
+  renderAll();
+}
+
+async function deletePeriodicTask() {
+  const id = document.getElementById('pEditId').value;
+  if (!id) return;
+  if (!confirm('이 주기업무를 삭제하시겠습니까?')) return;
+  await fbDelete('periodicTasks', id);
+  state.periodicTasks = state.periodicTasks.filter(t => t.id !== id);
+  saveLocal();
+  closeModal('modalPeriodic');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ============================================================
+// ONE-TIME LIST
+// ============================================================
+function renderOneTimeList() {
+  // Render filter chips
+  const filterRow = document.getElementById('oneTimeFilterRow');
+  const allCats = ['all', ...state.categories];
+  filterRow.innerHTML = allCats.map(c =>
+    `<button class="chip ${state.oneTimeFilter===c?'active':''}" onclick="setOneTimeFilter('${c}')">${c==='all'?'전체':c}</button>`
+  ).join('');
+
+  let tasks = state.oneTimeTasks.filter(t => t.status !== '완료' && t.status !== '미수행');
+  if (state.oneTimeFilter !== 'all') tasks = tasks.filter(t => t.category === state.oneTimeFilter);
+  ensureOrder(tasks);
+  tasks.sort((a,b) => (a.order??0) - (b.order??0));
+
+  const cont = document.getElementById('oneTimeList');
+  if (tasks.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">📌</div><div class="empty-txt">등록된 일회성업무가 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+  cont.innerHTML = tasks.map((t, i) => `
+    <div class="list-item" style="padding:12px 14px">
+      <div class="list-item-row">
+        <div class="list-item-content" onclick='openOneTimeForm(${JSON.stringify(t).replace(/'/g,"&#39;")})'>
+          <div class="li-name">${t.name}</div>
+          <div class="li-meta">
+            ${t.category ? `<span class="tag tag-gray">${t.category}</span>` : ''}
+            ${t.importance ? `<span class="tag ${t.importance==='A'?'tag-red':t.importance==='B'?'tag-orange':'tag-green'}">중요${t.importance}</span>` : ''}
+            ${t.urgency ? `<span class="tag ${t.urgency==='A'?'tag-red':t.urgency==='B'?'tag-orange':'tag-green'}">긴급${t.urgency}</span>` : ''}
+            <span class="sbadge s-${t.status||'미수행'}">${t.status||'미수행'}</span>
+            ${t.requestedDate ? `<span class="tag tag-gray">${t.requestedDate}</span>` : ''}
+          </div>
+        </div>
+        ${sortBtnsHtml('oneTimeTasks', t.id, i===0, i===tasks.length-1)}
+      </div>
+    </div>`).join('');
+}
+
+function setOneTimeFilter(cat) {
+  state.oneTimeFilter = cat;
+  renderOneTimeList();
+}
+
+// ============================================================
+// ONE-TIME FORM
+// ============================================================
+function openOneTimeForm(task) {
+  document.getElementById('otName').value = task?.name || '';
+  document.getElementById('otImp').value = task?.importance || '';
+  document.getElementById('otUrg').value = task?.urgency || '';
+  document.getElementById('otReceived').value = task?.receivedDate || '';
+  document.getElementById('otRequested').value = task?.requestedDate || '';
+  document.getElementById('otPlanned').value = task?.plannedDate || '';
+  document.getElementById('otStatus').value = task?.status || '미완료';
+  document.getElementById('otMemo').value = task?.memo || '';
+  document.getElementById('otEditId').value = task?.id || '';
+  document.getElementById('otRequester').value = task?.requester || '';
+  document.getElementById('otCollaborator').value = task?.collaborator || '';
+  document.getElementById('otDeleteBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('otGcalBtn').style.display = task ? 'block' : 'none';
+  document.getElementById('oneTimeModalTitle').textContent = task ? '일회성업무 수정' : '일회성업무 추가';
+
+  // Category
+  state.currentOtCategory = task?.category || '';
+  renderOtCategories();
+
+  // Importance/Urgency buttons
+  ['otImp','otUrg'].forEach(fieldId => {
+    const val = document.getElementById(fieldId).value;
+    const group = fieldId === 'otImp' ?
+      document.querySelectorAll('[onclick^="selectOpt(this,\'otImp\'"]') :
+      document.querySelectorAll('[onclick^="selectOpt(this,\'otUrg\'"]');
+    document.querySelectorAll(`[onclick*="'${fieldId}'"]`).forEach(b => {
+      b.classList.toggle('sel', b.textContent === val);
+    });
+  });
+
+  // Progress
+  state.otProgressItems = task?.progress ? JSON.parse(JSON.stringify(task.progress)) : [];
+  renderProgressItems();
+
+  openModal('modalOneTime');
+}
+
+function renderOtCategories() {
+  const group = document.getElementById('otCategoryGroup');
+  group.innerHTML = state.categories.map(c =>
+    `<button class="opt-btn ${state.currentOtCategory===c?'sel':''}" onclick="pickOtCategory(this,'${c}')">${c}</button>`
+  ).join('');
+}
+
+function pickOtCategory(btn, cat) {
+  document.querySelectorAll('#otCategoryGroup .opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  state.currentOtCategory = cat;
+}
+
+function selectOpt(btn, fieldId, val) {
+  document.querySelectorAll(`[onclick*="'${fieldId}'"]`).forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById(fieldId).value = val;
+}
+
+function renderProgressItems() {
+  const cont = document.getElementById('otProgressList');
+  if (state.otProgressItems.length === 0) { cont.innerHTML = ''; return; }
+  cont.innerHTML = state.otProgressItems.map((item, idx) => `
+    <div class="prog-item">
+      <div class="prog-item-header">
+        <input type="date" class="form-input" style="width:auto;flex:1;margin-right:8px" value="${item.date||''}"
+          onchange="updateProgress(${idx},'date',this.value)">
+        <button class="prog-remove" onclick="removeProgress(${idx})">✕</button>
+      </div>
+      <textarea class="form-textarea" style="min-height:56px" placeholder="진행사항 입력..."
+        onchange="updateProgress(${idx},'text',this.value)">${item.text||''}</textarea>
+    </div>`).join('');
+}
+
+function addProgressItem() {
+  state.otProgressItems.push({text:'', date: fmtDateShort(new Date())});
+  renderProgressItems();
+  // Scroll to bottom of modal
+  const modal = document.querySelector('#modalOneTime .modal');
+  setTimeout(() => modal.scrollTo(0, modal.scrollHeight), 100);
+}
+
+function updateProgress(idx, key, val) {
+  if (state.otProgressItems[idx]) state.otProgressItems[idx][key] = val;
+}
+
+function removeProgress(idx) {
+  state.otProgressItems.splice(idx, 1);
+  renderProgressItems();
+}
+
+function openAddCategory() {
+  document.getElementById('newCategoryInput').value = '';
+  openModal('modalCategory');
+}
+
+async function saveNewCategory() {
+  const val = document.getElementById('newCategoryInput').value.trim();
+  if (!val) { showToast('항목명을 입력하세요'); return; }
+  if (state.categories.includes(val)) { showToast('이미 존재하는 항목입니다'); return; }
+  state.categories.push(val);
+  await fbSaveCategories();
+  saveLocal();
+  closeModal('modalCategory');
+  renderOtCategories();
+  renderOneTimeList();
+  showToast(`'${val}' 항목이 추가되었습니다`);
+}
+
+async function saveOneTimeTask() {
+  const name = document.getElementById('otName').value.trim();
+  if (!name) { showToast('업무명을 입력하세요'); return; }
+
+  // Collect progress from current DOM
+  document.querySelectorAll('#otProgressList .prog-item').forEach((el, idx) => {
+    if (state.otProgressItems[idx]) {
+      state.otProgressItems[idx].date = el.querySelector('input[type=date]').value;
+      state.otProgressItems[idx].text = el.querySelector('textarea').value;
+    }
+  });
+
+  const status = document.getElementById('otStatus').value;
+  const task = {
+    name,
+    category: state.currentOtCategory,
+    importance: document.getElementById('otImp').value,
+    urgency: document.getElementById('otUrg').value,
+    receivedDate: document.getElementById('otReceived').value,
+    requestedDate: document.getElementById('otRequested').value,
+    plannedDate: document.getElementById('otPlanned').value,
+    status,
+    completedDate: status === '완료' ? fmtDateShort(new Date()) : '',
+    progress: state.otProgressItems.filter(p => p.text || p.date),
+    requester: document.getElementById('otRequester').value.trim(),
+    collaborator: document.getElementById('otCollaborator').value.trim(),
+    memo: document.getElementById('otMemo').value.trim(),
+  };
+
+  const editId = document.getElementById('otEditId').value;
+  if (editId) {
+    const idx = state.oneTimeTasks.findIndex(t => t.id === editId);
+    if (idx >= 0) state.oneTimeTasks[idx] = {id: editId, ...task};
+    await fbSave('oneTimeTasks', task, editId);
+    showToast('일회성업무가 수정되었습니다');
+  } else {
+    task.createdAt = new Date().toISOString();
+    const newId = await fbSave('oneTimeTasks', task, null);
+    state.oneTimeTasks.push({id: newId, ...task});
+    showToast('일회성업무가 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalOneTime');
+  renderAll();
+}
+
+async function deleteOneTimeTask() {
+  const id = document.getElementById('otEditId').value;
+  if (!id) return;
+  if (!confirm('이 업무를 삭제하시겠습니까?')) return;
+  await fbDelete('oneTimeTasks', id);
+  state.oneTimeTasks = state.oneTimeTasks.filter(t => t.id !== id);
+  saveLocal();
+  closeModal('modalOneTime');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// ============================================================
+// MEETING LIST & CRUD
+// ============================================================
+function setMeetingFilter(f) {
+  state.meetingFilter = f;
+  document.querySelectorAll('[id^="mchip-"]').forEach(c => c.classList.remove('active'));
+  const el = document.getElementById('mchip-' + f);
+  if (el) el.classList.add('active');
+  renderMeetingList();
+}
+
+function renderMeetingList() {
+  const cont = document.getElementById('meetingList');
+  if (!cont) return;
+  let list = [...state.meetings];
+  if (state.meetingFilter !== 'all') list = list.filter(m => m.type === state.meetingFilter);
+  ensureOrder(list);
+  list.sort((a,b) => (a.order??0) - (b.order??0));
+  if (list.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">🗣</div><div class="empty-txt">등록된 회의가 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+  cont.innerHTML = list.map((m, i) => {
+    const cycleLabel = m.type === '정기'
+      ? (m.cycle === '주간' ? `주간 (${(m.weekDays||[]).join(',')})` : m.cycle === '월간' ? `월간 (${m.weekNum||''} ${m.weekDayMonth||''})` : m.cycle||'')
+      : (m.date || '');
+    return `
+    <div class="list-item" style="border-left:3px solid var(--purple);padding:12px 14px">
+      <div class="list-item-row">
+        <div class="list-item-content" onclick='openMeetingForm(${JSON.stringify(m).replace(/'/g,"&#39;")})'>
+          <div class="li-name">${m.name}</div>
+          <div class="li-meta">
+            ${m.type ? `<span class="tag tag-purple">${m.type}</span>` : ''}
+            ${cycleLabel ? `<span class="tag tag-gray">${cycleLabel}</span>` : ''}
+            ${m.time ? `<span class="tag tag-gray">⏰ ${m.time}</span>` : ''}
+            ${m.place ? `<span class="tag tag-gray">📍 ${m.place}</span>` : ''}
+            ${m.hostDept ? `<span class="tag tag-gray">${m.hostDept}</span>` : ''}
+          </div>
+        </div>
+        ${sortBtnsHtml('meetings', m.id, i===0, i===list.length-1)}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openMeetingForm(meeting) {
+  const m = meeting;
+  document.getElementById('mtName').value       = m?.name || '';
+  document.getElementById('mtDate').value       = m?.date || fmtDateShort(state.currentDate);
+  document.getElementById('mtTime').value       = m?.time || '';
+  document.getElementById('mtTimeRegular').value= m?.time || '';
+  document.getElementById('mtPlace').value      = m?.place || '';
+  document.getElementById('mtHostDept').value   = m?.hostDept || '';
+  document.getElementById('mtHostPerson').value = m?.hostPerson || '';
+  document.getElementById('mtAttendDept').value = m?.attendDept || '';
+  document.getElementById('mtAgenda').value     = m?.agenda || '';
+  document.getElementById('mtEditId').value     = m?.id || '';
+  document.getElementById('mtDeleteBtn').style.display = m ? 'block' : 'none';
+  document.getElementById('mtGcalBtn').style.display   = m ? 'block' : 'none';
+  document.getElementById('meetingModalTitle').textContent = m ? '회의 수정' : '회의 추가';
+
+  // 유형 버튼 초기화
+  document.getElementById('mtType').value = m?.type || '';
+  ['수시','정기'].forEach(v => {
+    document.getElementById('mtBtn-' + v)?.classList.toggle('sel', (m?.type||'') === v);
+  });
+
+  // 주기 초기화
+  document.getElementById('mtCycle').value = m?.cycle || '';
+  ['주간','월간'].forEach(v => {
+    document.getElementById('mtCycleBtn-' + v)?.classList.toggle('sel', (m?.cycle||'') === v);
+  });
+
+  // 주간 요일 복원
+  document.querySelectorAll('#mtWeekDayBtns .opt-btn').forEach(b => {
+    b.classList.toggle('sel', (m?.weekDays||[]).includes(b.textContent));
+  });
+
+  // 월간 주차/요일 복원
+  document.getElementById('mtWeekNum').value      = m?.weekNum || '';
+  document.getElementById('mtWeekDayMonth').value = m?.weekDayMonth || '';
+  document.querySelectorAll('#mtWeekNumBtns .opt-btn').forEach(b => {
+    b.classList.toggle('sel', b.textContent === (m?.weekNum||''));
+  });
+  document.querySelectorAll('#mtWeekDayMonthBtns .opt-btn').forEach(b => {
+    b.classList.toggle('sel', b.textContent === (m?.weekDayMonth||''));
+  });
+
+  _applyMeetingTypeUI(m?.type || '');
+  _applyMeetingCycleUI(m?.cycle || '');
+  openModal('modalMeeting');
+}
+
+function pickMeetingType(btn, val) {
+  ['수시','정기'].forEach(v => document.getElementById('mtBtn-' + v)?.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('mtType').value = val;
+  _applyMeetingTypeUI(val);
+}
+
+function _applyMeetingTypeUI(val) {
+  document.getElementById('mtSusiFields').style.display    = val === '수시' ? 'block' : 'none';
+  document.getElementById('mtJeonggiFields').style.display = val === '정기' ? 'block' : 'none';
+}
+
+function pickMeetingCycle(btn, val) {
+  ['주간','월간'].forEach(v => document.getElementById('mtCycleBtn-' + v)?.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('mtCycle').value = val;
+  _applyMeetingCycleUI(val);
+}
+
+function _applyMeetingCycleUI(val) {
+  document.getElementById('mtWeekDayGroup').style.display = val === '주간' ? 'block' : 'none';
+  document.getElementById('mtMonthGroup').style.display   = val === '월간' ? 'block' : 'none';
+}
+
+function toggleMtWeekDay(btn) {
+  btn.classList.toggle('sel');
+}
+
+function pickMtOne(btn, hiddenId, val) {
+  const group = btn.closest('.opt-group');
+  if (group) group.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById(hiddenId).value = val;
+}
+
+// 정기 회의가 특정 날짜에 해당하는지 판단 (공휴일 이동 없음)
+function isRegularMeetingDueOnDate(m, date) {
+  if (m.type !== '정기') return false;
+  const dow = date.getDay(); // 0=일,1=월,...6=토
+  const KOR = ['일','월','화','수','목','금','토'];
+  const dayKor = KOR[dow];
+  const dateStr = fmtDateShort(date);
+
+  if (m.cycle === '주간') {
+    return (m.weekDays || []).includes(dayKor);
+  }
+
+  if (m.cycle === '월간') {
+    const targetDow = KOR_DAY_TO_DOW[m.weekDayMonth];
+    if (!targetDow || dow !== targetDow) return false;
+
+    const year = date.getFullYear(), month = date.getMonth();
+    const day = date.getDate();
+
+    if (m.weekNum === '마지막주') {
+      // 이 달 같은 요일 중 마지막인지
+      const lastSameDay = getLastWeekdayOfMonth(year, month, targetDow);
+      return fmtDateShort(lastSameDay) === dateStr;
+    } else {
+      // 1주~4주: n번째 해당 요일
+      const nth = parseInt(m.weekNum); // '1주'→1
+      const nthDate = getNthWeekdayDate(year, month, targetDow, nth);
+      return nthDate && fmtDateShort(nthDate) === dateStr;
+    }
+  }
+  return false;
+}
+
+// 해당 월의 특정 요일 중 마지막 날짜
+function getLastWeekdayOfMonth(year, month, targetDow) {
+  const lastDay = new Date(year, month + 1, 0);
+  while (lastDay.getDay() !== targetDow) lastDay.setDate(lastDay.getDate() - 1);
+  return new Date(lastDay);
+}
+
+async function saveMeeting() {
+  const name = document.getElementById('mtName').value.trim();
+  if (!name) { showToast('회의명을 입력하세요'); return; }
+  const type = document.getElementById('mtType').value;
+  if (!type) { showToast('유형을 선택하세요'); return; }
+
+  if (type === '수시') {
+    const date = document.getElementById('mtDate').value;
+    if (!date) { showToast('일자를 선택하세요'); return; }
+  }
+  if (type === '정기') {
+    const cycle = document.getElementById('mtCycle').value;
+    if (!cycle) { showToast('주기(주간/월간)를 선택하세요'); return; }
+    if (cycle === '주간') {
+      const wd = [...document.querySelectorAll('#mtWeekDayBtns .opt-btn.sel')].map(b=>b.textContent);
+      if (!wd.length) { showToast('수행 요일을 선택하세요'); return; }
+    }
+    if (cycle === '월간') {
+      if (!document.getElementById('mtWeekNum').value)      { showToast('주차를 선택하세요'); return; }
+      if (!document.getElementById('mtWeekDayMonth').value) { showToast('요일을 선택하세요'); return; }
+    }
+  }
+
+  const weekDays = [...document.querySelectorAll('#mtWeekDayBtns .opt-btn.sel')].map(b=>b.textContent);
+
+  const meeting = {
+    name,
+    type,
+    date:          type === '수시' ? document.getElementById('mtDate').value : '',
+    time:          type === '수시' ? document.getElementById('mtTime').value
+                                   : document.getElementById('mtTimeRegular').value,
+    cycle:         type === '정기' ? document.getElementById('mtCycle').value : '',
+    weekDays:      type === '정기' ? weekDays : [],
+    weekNum:       type === '정기' ? document.getElementById('mtWeekNum').value : '',
+    weekDayMonth:  type === '정기' ? document.getElementById('mtWeekDayMonth').value : '',
+    place:         document.getElementById('mtPlace').value.trim(),
+    hostDept:      document.getElementById('mtHostDept').value.trim(),
+    hostPerson:    document.getElementById('mtHostPerson').value.trim(),
+    attendDept:    document.getElementById('mtAttendDept').value.trim(),
+    agenda:        document.getElementById('mtAgenda').value.trim(),
+  };
+
+  const editId = document.getElementById('mtEditId').value;
+  if (editId) {
+    const idx = state.meetings.findIndex(m => m.id === editId);
+    if (idx >= 0) state.meetings[idx] = {id: editId, ...meeting};
+    await fbSave('meetings', meeting, editId);
+    showToast('회의가 수정되었습니다');
+  } else {
+    meeting.createdAt = new Date().toISOString();
+    const newId = await fbSave('meetings', meeting, null);
+    state.meetings.push({id: newId, ...meeting});
+    showToast('회의가 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalMeeting');
+  renderAll();
+}
+
+async function deleteMeeting() {
+  const id = document.getElementById('mtEditId').value;
+  if (!id) return;
+  if (!confirm('이 회의를 삭제하시겠습니까?')) return;
+  await fbDelete('meetings', id);
+  state.meetings = state.meetings.filter(m => m.id !== id);
+  saveLocal();
+  closeModal('modalMeeting');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+function sendToGCal_meeting() {
+  const id = document.getElementById('mtEditId').value;
+  const m = state.meetings.find(x => x.id === id);
+  if (!m) { showToast('먼저 저장하세요'); return; }
+
+  const dateStr = m.date || fmtDateShort(new Date());
+  let dates;
+  if (m.time) {
+    // 시작시간이 있으면 1시간 이벤트로
+    const [h, min] = m.time.split(':').map(Number);
+    const start = new Date(parseDateStr(dateStr));
+    start.setHours(h, min, 0);
+    const end = new Date(start); end.setHours(end.getHours() + 1);
+    const pad = n => String(n).padStart(2,'0');
+    const fmt = d => `${d.getFullYear()}${pad(d.getMonth()+1)}${pad(d.getDate())}T${pad(d.getHours())}${pad(d.getMinutes())}00`;
+    dates = `${fmt(start)}/${fmt(end)}`;
+  } else {
+    dates = makeGCalDates(dateStr);
+  }
+
+  const details = [
+    m.type        ? `유형: ${m.type}` : '',
+    m.hostDept    ? `주최부서: ${m.hostDept}` : '',
+    m.hostPerson  ? `주최자: ${m.hostPerson}` : '',
+    m.attendDept  ? `참석부서: ${m.attendDept}` : '',
+    m.agenda      ? `안건: ${m.agenda}` : '',
+    m.result      ? `결과: ${m.result}` : '',
+  ].filter(Boolean).join('\n');
+
+  const url = buildGCalUrl({
+    title: `[회의] ${m.name}`,
+    dates,
+    details,
+    location: m.place || '',
+  });
+  window.open(url, '_blank');
+  showToast('구글 캘린더가 열렸습니다');
+}
+
+// ============================================================
+// TO DO LIST (개인용)
+// ============================================================
+
+// ToDo가 특정 날짜에 해당하는지 판단 (공휴일 이동 없음)
+function isTodoDueOnDate(td, date) {
+  if (td.type !== '정기') return false;
+  const KOR = ['일','월','화','수','목','금','토'];
+  const dow = date.getDay();
+  const dayKor = KOR[dow];
+  const dateStr = fmtDateShort(date);
+
+  if (td.cycle === '일일') {
+    // 매일 (주말 포함 — 공휴일 이동 없음)
+    return true;
+  }
+  if (td.cycle === '주간') {
+    return (td.weekDays || []).includes(dayKor);
+  }
+  if (td.cycle === '월간') {
+    const targetDow = KOR_DAY_TO_DOW[td.weekDayMonth];
+    if (!targetDow || dow !== targetDow) return false;
+    const year = date.getFullYear(), month = date.getMonth();
+    if (td.weekNum === '마지막주') {
+      return fmtDateShort(getLastWeekdayOfMonth(year, month, targetDow)) === dateStr;
+    } else {
+      const nth = parseInt(td.weekNum);
+      const nthDate = getNthWeekdayDate(year, month, targetDow, nth);
+      return nthDate && fmtDateShort(nthDate) === dateStr;
+    }
+  }
+  return false;
+}
+
+function setTodoFilter(f) {
+  state.todoFilter = f;
+  ['all','수시','정기','미완료','완료'].forEach(v => {
+    document.getElementById('todochip-' + v)?.classList.toggle('active', v === f);
+  });
+  renderTodoList();
+}
+
+function renderTodoList() {
+  const cont = document.getElementById('todoList');
+  if (!cont) return;
+
+  let list = [...state.todos];
+  if (state.todoFilter === '수시')   list = list.filter(t => t.type === '수시');
+  if (state.todoFilter === '정기')   list = list.filter(t => t.type === '정기');
+  if (state.todoFilter === '미완료') list = list.filter(t => t.status !== '완료');
+  if (state.todoFilter === '완료')   list = list.filter(t => t.status === '완료');
+
+  // 미완료 먼저, order 순
+  list.sort((a,b) => {
+    const todayStr = fmtDateShort(new Date());
+    const aDone = a.type === '정기' ? isTodoCompletedForDate(a.id, todayStr) : a.status === '완료';
+    const bDone = b.type === '정기' ? isTodoCompletedForDate(b.id, todayStr) : b.status === '완료';
+    if (aDone !== bDone) return aDone ? 1 : -1;
+    return (a.order??0) - (b.order??0);
+  });
+
+  if (list.length === 0) {
+    cont.innerHTML = '<div class="empty"><div class="empty-ico">☑️</div><div class="empty-txt">등록된 할 일이 없습니다<br>+ 버튼으로 추가하세요</div></div>';
+    return;
+  }
+
+  ensureOrder(list);
+  const todayStr2 = fmtDateShort(new Date());
+  cont.innerHTML = list.map((td, i) => {
+    const done = td.type === '정기'
+      ? isTodoCompletedForDate(td.id, todayStr2)
+      : td.status === '완료';
+    const cycleLabel = td.type === '정기'
+      ? (td.cycle === '일일' ? '매일'
+        : td.cycle === '주간' ? `주간 (${(td.weekDays||[]).join(',')})` 
+        : td.cycle === '월간' ? `월간 (${td.weekNum||''} ${td.weekDayMonth||''})` 
+        : td.cycle||'')
+      : (td.date || '');
+    return `
+      <div class="list-item ${done ? 'tl-completed' : ''}" style="border-left:3px solid ${done ? 'var(--border)' : 'var(--green)'};padding:12px 14px">
+        <div class="list-item-row">
+          <div class="list-item-content" onclick='openTodoForm(${JSON.stringify(td).replace(/'/g,"&#39;")})'>
+            <div class="li-name" style="${done ? 'text-decoration:line-through;color:var(--text3)' : ''}">${td.name}</div>
+            <div class="li-meta">
+              <span class="tag ${done ? 'tag-gray' : 'tag-green'}">${td.type||''}</span>
+              ${cycleLabel ? `<span class="tag tag-gray">${cycleLabel}</span>` : ''}
+              <span class="sbadge ${done ? 's-완료' : 's-미완료'}">${td.status||'미완료'}</span>
+              ${td.memo ? `<span class="tag tag-gray" style="max-width:80px;overflow:hidden;text-overflow:ellipsis">${td.memo}</span>` : ''}
+            </div>
+          </div>
+          ${sortBtnsHtml('todos', td.id, i===0, i===list.length-1)}
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openTodoForm(todo) {
+  const td = todo;
+  document.getElementById('tdName').value  = td?.name  || '';
+  document.getElementById('tdMemo').value  = td?.memo  || '';
+  document.getElementById('tdDate').value  = td?.date  || '';
+  document.getElementById('tdEditId').value = td?.id   || '';
+  document.getElementById('tdType').value  = td?.type  || '';
+  document.getElementById('tdCycle').value = td?.cycle || '';
+  document.getElementById('tdWeekNum').value       = td?.weekNum       || '';
+  document.getElementById('tdWeekDayMonth').value  = td?.weekDayMonth  || '';
+  document.getElementById('tdStatus').value        = td?.status        || '미완료';
+  document.getElementById('tdDeleteBtn').style.display = td ? 'block' : 'none';
+  document.getElementById('tdStatusGroup').style.display = td ? 'block' : 'none';
+  document.getElementById('todoModalTitle').textContent = td ? '할 일 수정' : '할 일 추가';
+
+  // 유형 버튼
+  ['수시','정기'].forEach(v => document.getElementById('tdBtn-'+v)?.classList.toggle('sel', (td?.type||'') === v));
+  // 주기 버튼
+  ['일일','주간','월간'].forEach(v => document.getElementById('tdCycleBtn-'+v)?.classList.toggle('sel', (td?.cycle||'') === v));
+  // 주간 요일
+  document.querySelectorAll('#tdWeekDayBtns .opt-btn').forEach(b => {
+    b.classList.toggle('sel', (td?.weekDays||[]).includes(b.textContent));
+  });
+  // 월간 주차/요일
+  document.querySelectorAll('#tdWeekNumBtns .opt-btn').forEach(b => b.classList.toggle('sel', b.textContent === (td?.weekNum||'')));
+  document.querySelectorAll('#tdWeekDayMonthBtns .opt-btn').forEach(b => b.classList.toggle('sel', b.textContent === (td?.weekDayMonth||'')));
+  // 상태 버튼
+  ['미완료','완료'].forEach(v => document.getElementById('tdStatusBtn-'+v)?.classList.toggle('sel', (td?.status||'미완료') === v));
+
+  _applyTodoTypeUI(td?.type || '');
+  _applyTodoCycleUI(td?.cycle || '');
+  openModal('modalTodo');
+}
+
+function pickTodoType(btn, val) {
+  ['수시','정기'].forEach(v => document.getElementById('tdBtn-'+v)?.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('tdType').value = val;
+  _applyTodoTypeUI(val);
+}
+
+function _applyTodoTypeUI(val) {
+  document.getElementById('tdSusiFields').style.display    = val === '수시' ? 'block' : 'none';
+  document.getElementById('tdJeonggiFields').style.display = val === '정기' ? 'block' : 'none';
+}
+
+function pickTodoCycle(btn, val) {
+  ['일일','주간','월간'].forEach(v => document.getElementById('tdCycleBtn-'+v)?.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById('tdCycle').value = val;
+  _applyTodoCycleUI(val);
+}
+
+function _applyTodoCycleUI(val) {
+  document.getElementById('tdWeekDayGroup').style.display = val === '주간' ? 'block' : 'none';
+  document.getElementById('tdMonthGroup').style.display   = val === '월간' ? 'block' : 'none';
+}
+
+function pickTdOne(btn, hiddenId, val) {
+  const group = btn.closest('.opt-group');
+  if (group) group.querySelectorAll('.opt-btn').forEach(b => b.classList.remove('sel'));
+  btn.classList.add('sel');
+  document.getElementById(hiddenId).value = val;
+}
+
+async function saveTodo() {
+  const name = document.getElementById('tdName').value.trim();
+  if (!name) { showToast('할일명을 입력하세요'); return; }
+  const type = document.getElementById('tdType').value;
+  if (!type) { showToast('유형을 선택하세요'); return; }
+
+  if (type === '수시') {
+    // 날짜 없어도 저장 허용 (기한 없는 할 일)
+  }
+  if (type === '정기') {
+    const cycle = document.getElementById('tdCycle').value;
+    if (!cycle) { showToast('주기를 선택하세요'); return; }
+    if (cycle === '주간') {
+      const wd = [...document.querySelectorAll('#tdWeekDayBtns .opt-btn.sel')].map(b=>b.textContent);
+      if (!wd.length) { showToast('요일을 선택하세요'); return; }
+    }
+    if (cycle === '월간') {
+      if (!document.getElementById('tdWeekNum').value)     { showToast('주차를 선택하세요'); return; }
+      if (!document.getElementById('tdWeekDayMonth').value){ showToast('요일을 선택하세요'); return; }
+    }
+  }
+
+  const weekDays = [...document.querySelectorAll('#tdWeekDayBtns .opt-btn.sel')].map(b=>b.textContent);
+  const status = document.getElementById('tdStatus').value || '미완료';
+
+  const todo = {
+    name,
+    type,
+    date:         type === '수시' ? document.getElementById('tdDate').value : '',
+    cycle:        type === '정기' ? document.getElementById('tdCycle').value : '',
+    weekDays:     type === '정기' ? weekDays : [],
+    weekNum:      type === '정기' ? document.getElementById('tdWeekNum').value : '',
+    weekDayMonth: type === '정기' ? document.getElementById('tdWeekDayMonth').value : '',
+    status,
+    completedDate: status === '완료' ? fmtDateShort(new Date()) : '',
+    memo: document.getElementById('tdMemo').value.trim(),
+  };
+
+  const editId = document.getElementById('tdEditId').value;
+  if (editId) {
+    const idx = state.todos.findIndex(t => t.id === editId);
+    if (idx >= 0) state.todos[idx] = {id: editId, ...todo};
+    await fbSave('todos', todo, editId);
+    showToast('할 일이 수정되었습니다');
+  } else {
+    todo.createdAt = new Date().toISOString();
+    const newId = await fbSave('todos', todo, null);
+    state.todos.push({id: newId, ...todo});
+    showToast('할 일이 추가되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalTodo');
+  renderAll();
+}
+
+async function deleteTodo() {
+  const id = document.getElementById('tdEditId').value;
+  if (!id) return;
+  if (!confirm('이 할 일을 삭제하시겠습니까?')) return;
+  await fbDelete('todos', id);
+  state.todos = state.todos.filter(t => t.id !== id);
+  saveLocal();
+  closeModal('modalTodo');
+  renderAll();
+  showToast('삭제되었습니다');
+}
+
+// 정기 ToDo 날짜별 완료 여부 확인
+function isTodoCompletedForDate(todoId, dateStr) {
+  return state.todoCompletions.some(c => c.todoId === todoId && c.date === dateStr);
+}
+
+// 정기 ToDo 날짜별 완료 토글 (완료 ↔ 미완료)
+async function completeTodo(todoId, dateStr) {
+  const todo = state.todos.find(t => t.id === todoId);
+  if (!todo) return;
+
+  if (todo.type === '정기') {
+    // 날짜별 완료 기록 처리
+    const existing = state.todoCompletions.find(c => c.todoId === todoId && c.date === dateStr);
+    if (existing) {
+      // 이미 완료 → 취소
+      await fbDelete('todoCompletions', existing.id);
+      state.todoCompletions = state.todoCompletions.filter(c => c.id !== existing.id);
+      showToast('완료가 취소되었습니다');
+    } else {
+      // 완료 기록 추가
+      const rec = {todoId, date: dateStr};
+      const newId = await fbSave('todoCompletions', rec, null);
+      state.todoCompletions.push({id: newId, ...rec});
+      showToast('✅ 완료 처리되었습니다');
+    }
+  } else {
+    // 수시: todo 자체 status 변경
+    const isDone = todo.status === '완료';
+    todo.status = isDone ? '미완료' : '완료';
+    todo.completedDate = isDone ? '' : dateStr;
+    await fbSave('todos', todo, todoId);
+    showToast(isDone ? '완료가 취소되었습니다' : '✅ 완료 처리되었습니다');
+  }
+
+  saveLocal();
+  renderAll();
+}
+
+// ============================================================
+// MEETING RESULTS (일자별 현황/결과)
+// ============================================================
+function getMeetingResultForDate(meetingId, dateStr) {
+  return state.meetingResults.find(r => r.meetingId === meetingId && r.date === dateStr);
+}
+
+function openMeetingStatusModal(meetingId, dateStr, meetingName) {
+  const mr = getMeetingResultForDate(meetingId, dateStr);
+  document.getElementById('mrMeetingId').value   = meetingId;
+  document.getElementById('mrDate').value        = dateStr;
+  document.getElementById('mrEditId').value      = mr?.id || '';
+  document.getElementById('mrStatus').value      = mr?.status || '';
+  document.getElementById('mrReason').value      = mr?.reason || '';
+  document.getElementById('mrResult').value      = mr?.result || '';
+  document.getElementById('mtStatusModalTitle').textContent = `📋 ${meetingName}`;
+  document.getElementById('mtStatusDateLabel').textContent  = `📅 ${dateStr}`;
+  document.getElementById('mrDeleteBtn').style.display = mr ? 'block' : 'none';
+
+  // 상태 버튼 복원
+  ['참석완료','미참석','취소'].forEach(v => {
+    document.getElementById('mrBtn-' + v)?.classList.toggle('sel', (mr?.status||'') === v);
+  });
+  document.getElementById('mrReasonGroup').style.display = (mr?.status === '미참석') ? 'block' : 'none';
+
+  openModal('modalMeetingStatus');
+}
+
+function pickMeetingStatus(btn, val) {
+  const current = document.getElementById('mrStatus').value;
+  if (current === val) {
+    // 이미 선택된 버튼 → 해제
+    btn.classList.remove('sel');
+    document.getElementById('mrStatus').value = '';
+    document.getElementById('mrReasonGroup').style.display = 'none';
+  } else {
+    // 다른 버튼 선택
+    ['참석완료','미참석','취소'].forEach(v => document.getElementById('mrBtn-'+v)?.classList.remove('sel'));
+    btn.classList.add('sel');
+    document.getElementById('mrStatus').value = val;
+    document.getElementById('mrReasonGroup').style.display = val === '미참석' ? 'block' : 'none';
+  }
+}
+
+async function saveMeetingResult() {
+  const status = document.getElementById('mrStatus').value;
+  if (status === '미참석' && !document.getElementById('mrReason').value.trim()) {
+    showToast('미참석 사유를 입력하세요'); return;
+  }
+
+  const rec = {
+    meetingId: document.getElementById('mrMeetingId').value,
+    date:      document.getElementById('mrDate').value,
+    status,
+    reason:    document.getElementById('mrReason').value.trim(),
+    result:    document.getElementById('mrResult').value.trim(),
+  };
+
+  const editId = document.getElementById('mrEditId').value;
+  if (editId) {
+    const idx = state.meetingResults.findIndex(r => r.id === editId);
+    if (idx >= 0) state.meetingResults[idx] = {id: editId, ...rec};
+    await fbSave('meetingResults', rec, editId);
+    showToast('회의 현황이 수정되었습니다');
+  } else {
+    const newId = await fbSave('meetingResults', rec, null);
+    state.meetingResults.push({id: newId, ...rec});
+    showToast('회의 현황이 저장되었습니다');
+  }
+
+  saveLocal();
+  closeModal('modalMeetingStatus');
+  renderTodayTasks();
+}
+
+async function deleteMeetingResult() {
+  const id = document.getElementById('mrEditId').value;
+  if (!id) return;
+  await fbDelete('meetingResults', id);
+  state.meetingResults = state.meetingResults.filter(r => r.id !== id);
+  saveLocal();
+  closeModal('modalMeetingStatus');
+  renderTodayTasks();
+  showToast('삭제되었습니다');
+}
+
+// ============================================================
+// COMPLETED LIST
+// ============================================================
+function switchCompletedTab(tab) {
+  state.completedTab = tab;
+  document.getElementById('tabPeriodic').classList.toggle('active', tab === 'periodic');
+  document.getElementById('tabOneTime').classList.toggle('active', tab === 'oneTime');
+  renderCompleted();
+}
+
+function renderCompleted() {
+  const keyword = (document.getElementById('completedSearch')?.value || '').toLowerCase();
+  const fromDate = document.getElementById('completedFrom')?.value || '';
+  const toDate = document.getElementById('completedTo')?.value || '';
+  const cont = document.getElementById('completedList');
+
+  if (state.completedTab === 'periodic') {
+    // Show completions for periodic tasks
+    let comps = state.completions.filter(c => c.taskType === 'periodic');
+    if (fromDate) comps = comps.filter(c => c.date >= fromDate);
+    if (toDate) comps = comps.filter(c => c.date <= toDate);
+    if (keyword) {
+      comps = comps.filter(c => {
+        const task = state.periodicTasks.find(t => t.id === c.taskId);
+        return task && task.name.toLowerCase().includes(keyword);
+      });
+    }
+    comps.sort((a,b) => b.date.localeCompare(a.date));
+    if (comps.length === 0) {
+      cont.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">처리된 주기업무 기록이 없습니다</div></div>';
+      return;
+    }
+    cont.innerHTML = comps.map(c => {
+      const task = state.periodicTasks.find(t => t.id === c.taskId);
+      if (!task) return '';
+      const st = c.status || '완료';
+      return `<div class="list-item">
+        <div class="li-name">${task.name}</div>
+        <div class="li-meta">
+          <span class="tag tag-blue">${task.cycleType}</span>
+          <span class="tag tag-gray">${c.date}</span>
+          <span class="sbadge s-${st}">${st}</span>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    let tasks = state.oneTimeTasks.filter(t => t.status === '완료' || t.status === '미수행');
+    if (fromDate) tasks = tasks.filter(t => (t.completedDate || t.plannedDate || '') >= fromDate);
+    if (toDate) tasks = tasks.filter(t => (t.completedDate || t.plannedDate || '') <= toDate);
+    if (keyword) tasks = tasks.filter(t => t.name.toLowerCase().includes(keyword));
+    tasks.sort((a,b) => (b.completedDate||'').localeCompare(a.completedDate||''));
+    if (tasks.length === 0) {
+      cont.innerHTML = '<div class="empty"><div class="empty-ico">📋</div><div class="empty-txt">처리된 일회성업무가 없습니다</div></div>';
+      return;
+    }
+    cont.innerHTML = tasks.map(t => `
+      <div class="list-item tl-completed" onclick='openOneTimeForm(${JSON.stringify(t).replace(/'/g,"&#39;")})'>
+        <div class="li-name">${t.name}</div>
+        <div class="li-meta">
+          ${t.category ? `<span class="tag tag-gray">${t.category}</span>` : ''}
+          <span class="sbadge s-${t.status}">${t.status}</span>
+          ${t.completedDate ? `<span class="tag tag-gray">${t.completedDate}</span>` : ''}
+        </div>
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// CALENDAR
+// ============================================================
+function openCalendar() {
+  state.calDate = new Date(state.currentDate);
+  state.calSelectedDate = null;
+  renderCalendar();
+  document.getElementById('calOverlay').classList.add('active');
+}
+
+function calPrev() {
+  state.calDate.setMonth(state.calDate.getMonth() - 1);
+  renderCalendar();
+}
+
+function calNext() {
+  state.calDate.setMonth(state.calDate.getMonth() + 1);
+  renderCalendar();
+}
+
+function renderCalendar() {
+  const y = state.calDate.getFullYear(), m = state.calDate.getMonth();
+  document.getElementById('calMonthTitle').textContent = `${y}년 ${m+1}월`;
+
+  const firstDay = new Date(y, m, 1).getDay();
+  const daysInMonth = new Date(y, m+1, 0).getDate();
+  const today = fmtDateShort(new Date());
+
+  let html = KOR_DAYS.map(d => `<div class="cal-dh">${d}</div>`).join('');
+
+  for (let i = 0; i < firstDay; i++) html += '<div class="cal-day cal-empty"></div>';
+
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(y, m, d);
+    const dateStr = fmtDateShort(date);
+    const isToday = dateStr === today;
+    const isSel = state.calSelectedDate && fmtDateShort(state.calSelectedDate) === dateStr;
+    const hasTasks = hasTasksOnDate(date);
+    const isHol = isHoliday(date);
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+    let dayStyle = '';
+    if (!isToday && isWeekend) dayStyle = 'color:var(--red)';
+    else if (!isToday && isHol) dayStyle = 'color:var(--purple)';
+    html += `<div class="cal-day${isToday?' cal-today':''}${isSel?' cal-selected':''}${hasTasks?' cal-dot':''}"
+      style="${dayStyle}" onclick="selectCalDay(${y},${m},${d})">${d}</div>`;
+  }
+
+  document.getElementById('calGrid').innerHTML = html;
+}
+
+function hasTasksOnDate(date) {
+  const periodicDue = state.periodicTasks.some(t => isPeriodicDueOnDate(t, date));
+  const dateStr = fmtDateShort(date);
+  const oneTimeDue = state.oneTimeTasks.some(t => t.status !== '완료' &&
+    (t.requestedDate === dateStr || t.plannedDate === dateStr));
+  const meetingDue = state.meetings.some(m =>
+    (m.type === '수시' && m.date === dateStr) ||
+    (m.type === '정기' && isRegularMeetingDueOnDate(m, date))
+  );
+  return periodicDue || oneTimeDue || meetingDue;
+}
+
+function selectCalDay(y, m, d) {
+  state.calSelectedDate = new Date(y, m, d);
+  renderCalendar();
+  renderCalSelectedInfo();
+}
+
+function renderCalSelectedInfo() {
+  if (!state.calSelectedDate) return;
+  const date = state.calSelectedDate;
+  const dateStr = fmtDateShort(date);
+  const info = document.getElementById('calSelectedInfo');
+
+  // ── 카테고리별 수집 ──
+  const meetings = [];
+  const periodics = [];
+  const oneTimes = [];
+  const todos = [];
+
+  // 회의
+  state.meetings.forEach(m => {
+    const due = (m.type === '수시' && m.date === dateStr) ||
+                (m.type === '정기' && isRegularMeetingDueOnDate(m, date));
+    if (!due) return;
+    const mr = state.meetingResults.find(r => r.meetingId === m.id && r.date === dateStr);
+    meetings.push({m, mr});
+  });
+
+  // 주기업무
+  state.periodicTasks.forEach(t => {
+    if (!isPeriodicDueOnDate(t, date)) return;
+    const comp = getCompletionForDate(t.id, dateStr);
+    periodics.push({t, status: comp ? comp.status : '미완료'});
+  });
+
+  // 일회성업무
+  state.oneTimeTasks.forEach(t => {
+    if (t.requestedDate === dateStr || t.plannedDate === dateStr) {
+      oneTimes.push(t);
+    }
+  });
+
+  // ToDo
+  state.todos.forEach(td => {
+    const due = (td.type === '수시' && td.date === dateStr) ||
+                (td.type === '정기' && isTodoDueOnDate(td, date));
+    if (!due) return;
+    const done = td.type === '정기'
+      ? isTodoCompletedForDate(td.id, dateStr)
+      : td.status === '완료';
+    todos.push({td, done});
+  });
+
+  const total = meetings.length + periodics.length + oneTimes.length + todos.length;
+
+  if (total === 0) {
+    info.innerHTML = `
+      <div class="cal-info-title">${fmtDate(date)}</div>
+      <div style="font-size:12px;color:var(--text3);text-align:center;padding:10px 0">예정된 업무 없음</div>`;
+    return;
+  }
+
+  let html = `<div class="cal-info-title">${fmtDate(date)} <span style="color:var(--accent);font-weight:900">·  ${total}건</span></div>`;
+
+  // 회의 섹션
+  if (meetings.length > 0) {
+    html += `<div class="cal-section-label">🗣 회의 (${meetings.length})</div>`;
+    meetings.forEach(({m, mr}) => {
+      const statusBadge = mr
+        ? `<span class="sbadge ${mr.status==='참석완료'?'s-완료':'s-미수행'}" style="font-size:9px">${mr.status}</span>`
+        : '';
+      html += `<div class="cal-task-item" style="border-left:2px solid var(--purple);padding-left:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text)">${m.name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">
+            ${m.time ? `⏰ ${m.time}` : ''}${m.place ? `  📍 ${m.place}` : ''}
+            ${statusBadge}
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // 주기업무 섹션
+  if (periodics.length > 0) {
+    html += `<div class="cal-section-label">🔄 주기업무 (${periodics.length})</div>`;
+    periodics.forEach(({t, status}) => {
+      const done = status === '완료';
+      html += `<div class="cal-task-item" style="border-left:2px solid var(--blue);padding-left:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text);${done?'text-decoration:line-through;color:var(--text3)':''}">${t.name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">
+            <span class="tag tag-blue" style="font-size:9px">${t.cycleType}</span>
+            <span class="sbadge ${done?'s-완료':'s-미완료'}" style="font-size:9px">${status}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // 일회성업무 섹션
+  if (oneTimes.length > 0) {
+    html += `<div class="cal-section-label">📌 일회성업무 (${oneTimes.length})</div>`;
+    oneTimes.forEach(t => {
+      const done = t.status === '완료' || t.status === '미수행';
+      html += `<div class="cal-task-item" style="border-left:2px solid var(--orange);padding-left:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text);${done?'text-decoration:line-through;color:var(--text3)':''}">${t.name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">
+            ${t.category ? `<span class="tag tag-gray" style="font-size:9px">${t.category}</span>` : ''}
+            ${t.importance ? `<span class="tag ${t.importance==='A'?'tag-red':t.importance==='B'?'tag-orange':'tag-green'}" style="font-size:9px">중요${t.importance}</span>` : ''}
+            <span class="sbadge s-${t.status||'미완료'}" style="font-size:9px">${t.status||'미완료'}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  // ToDo 섹션
+  if (todos.length > 0) {
+    html += `<div class="cal-section-label">☑️ To Do (${todos.length})</div>`;
+    todos.forEach(({td, done}) => {
+      html += `<div class="cal-task-item" style="border-left:2px solid var(--green);padding-left:6px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:700;color:var(--text);${done?'text-decoration:line-through;color:var(--text3)':''}">${td.name}</div>
+          <div style="font-size:10px;color:var(--text2);margin-top:2px">
+            <span class="tag ${done?'tag-gray':'tag-green'}" style="font-size:9px">${td.type||''}</span>
+            <span class="sbadge ${done?'s-완료':'s-미완료'}" style="font-size:9px">${done?'완료':'미완료'}</span>
+          </div>
+        </div>
+      </div>`;
+    });
+  }
+
+  info.innerHTML = html;
+}
+
+// ============================================================
+// EXCEL DOWNLOAD
+// ============================================================
+
+// iOS/Android/PC 공통 워크북 저장 함수
+function saveWorkbook(wb, filename) {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+
+  if (isIOS) {
+    // iOS Safari: base64 data URI를 <a> 태그에 직접 설정 → 사용자가 탭
+    const b64 = XLSX.write(wb, {bookType:'xlsx', type:'base64'});
+    const dataURI = 'data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64,' + b64;
+    const link = document.getElementById('iosDownloadLink');
+    link.href = dataURI;
+    link.setAttribute('download', filename);
+    document.getElementById('iosDownloadFilename').textContent = filename;
+    document.getElementById('iosDownloadOverlay').classList.add('active');
+  } else {
+    // PC / Android: Blob 자동 다운로드
+    const wbout = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+    const blob = new Blob([wbout], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 3000);
+    showToast('엑셀 파일이 다운로드되었습니다');
+  }
+}
+
+function closeIosDownload() {
+  document.getElementById('iosDownloadOverlay').classList.remove('active');
+}
+
+function downloadExcel() {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // ── 주기업무 시트 ──
+  const pHeaders = ['업무명','주기유형','수행기준일','메모'];
+  const pData = state.periodicTasks.map(t => [
+    t.name, t.cycleType, getCriteriaLabel(t), t.memo||''
+  ]);
+  const pWS = XLSX.utils.aoa_to_sheet([pHeaders, ...pData]);
+  pWS['!cols'] = [{wch:30},{wch:10},{wch:20},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, pWS, '주기업무');
+
+  // ── 일회성업무 시트 (완료 뒤, 날짜 내림차순) ──
+  const sortedOT = [...state.oneTimeTasks].sort((a,b) => {
+    if ((a.status==='완료') !== (b.status==='완료')) return a.status==='완료' ? 1 : -1;
+    const dA = a.requestedDate || a.plannedDate || '';
+    const dB = b.requestedDate || b.plannedDate || '';
+    return dB.localeCompare(dA);
+  });
+  const otHeaders = [
+    '업무명','구분','중요도','긴급도',
+    '접수일','완료요청일','완료예정일','현황',
+    '요청의뢰자','협조자','최근진행사항','메모'
+  ];
+  const otData = sortedOT.map(t => [
+    t.name, t.category||'', t.importance||'', t.urgency||'',
+    t.receivedDate||'', t.requestedDate||'', t.plannedDate||'',
+    t.status||'',
+    t.requester||'', t.collaborator||'',
+    t.progress?.length ? t.progress[t.progress.length-1].text : '',
+    t.memo||''
+  ]);
+  const otWS = XLSX.utils.aoa_to_sheet([otHeaders, ...otData]);
+  otWS['!cols'] = [{wch:28},{wch:12},{wch:8},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},{wch:14},{wch:14},{wch:36},{wch:36}];
+  XLSX.utils.book_append_sheet(wb, otWS, '일회성업무');
+
+  // ── 회의 시트 (날짜 내림차순) ──
+  const sortedMt = [...state.meetings].sort((a,b) => {
+    const da = (a.date||'') + (a.time||'');
+    const db2 = (b.date||'') + (b.time||'');
+    return db2.localeCompare(da);
+  });
+  const mtHeaders = [
+    '회의명','유형','주기','수행요일/주차','요일(월간)',
+    '일자(수시)','시작시간','장소',
+    '주최부서','주최자','참석부서','회의안건','회의결과'
+  ];
+  const mtData = sortedMt.map(m => {
+    const cycleDetail = m.cycle === '주간'
+      ? (m.weekDays||[]).join(',')
+      : m.cycle === '월간' ? (m.weekNum||'') : '';
+    return [
+      m.name, m.type||'', m.cycle||'', cycleDetail, m.weekDayMonth||'',
+      m.date||'', m.time||'', m.place||'',
+      m.hostDept||'', m.hostPerson||'', m.attendDept||'',
+      m.agenda||'', m.result||''
+    ];
+  });
+  const mtWS = XLSX.utils.aoa_to_sheet([mtHeaders, ...mtData]);
+  mtWS['!cols'] = [{wch:28},{wch:12},{wch:10},{wch:16},{wch:8},{wch:14},{wch:12},{wch:20},{wch:40},{wch:40}];
+  XLSX.utils.book_append_sheet(wb, mtWS, '회의');
+
+  // ── ToDo 시트 ──
+  const sortedTd = [...state.todos].sort((a,b) => {
+    if ((a.status==='완료') !== (b.status==='완료')) return a.status==='완료' ? 1 : -1;
+    return (a.date||'').localeCompare(b.date||'');
+  });
+  const tdHeaders = ['할일명','유형','주기','수행요일/주차','요일(월간)','기한(수시)','상태','메모'];
+  const tdData = sortedTd.map(t => {
+    const cycleDetail = t.cycle === '주간' ? (t.weekDays||[]).join(',')
+      : t.cycle === '월간' ? (t.weekNum||'') : '';
+    return [
+      t.name, t.type||'', t.cycle||'', cycleDetail, t.weekDayMonth||'',
+      t.date||'', t.status||'미완료', t.memo||''
+    ];
+  });
+  const tdWS = XLSX.utils.aoa_to_sheet([tdHeaders, ...tdData]);
+  tdWS['!cols'] = [{wch:28},{wch:8},{wch:8},{wch:16},{wch:8},{wch:12},{wch:10},{wch:36}];
+  XLSX.utils.book_append_sheet(wb, tdWS, 'ToDo');
+
+  const dateStr = fmtDateShort(new Date()).replace(/-/g,'');
+  saveWorkbook(wb, `${dateStr}_업무List.xlsx`);
+}
+
+// ============================================================
+// 업무 진행 현황 엑셀 다운
+// ============================================================
+function downloadProgressExcel() {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+  const wb = XLSX.utils.book_new();
+
+  // ── 공통 정렬: 완료 항목 맨 아래 ──
+  const isDoneOT = t => t.status === '완료' || t.status === '미수행';
+  const isDoneTd = t => t.status === '완료';
+
+  // ── 1. 주기업무 현황 시트 ──
+  // completions 기록 기반 (기록 없으면 "미완료"로도 표시 안 함 — 기록된 것만)
+  const pRows = [];
+  state.periodicTasks.forEach(t => {
+    const recs = state.completions.filter(c => c.taskId === t.id && c.taskType === 'periodic');
+    if (recs.length === 0) {
+      pRows.push({name: t.name, cycleType: t.cycleType, criteria: getCriteriaLabel(t),
+        date: '', status: '기록없음', done: false});
+    } else {
+      recs.forEach(c => {
+        pRows.push({name: t.name, cycleType: t.cycleType, criteria: getCriteriaLabel(t),
+          date: c.date, status: c.status||'완료', done: c.status === '완료'});
+      });
+    }
+  });
+  pRows.sort((a,b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (a.date||'').localeCompare(b.date||'');
+  });
+  const pPH = ['업무명','주기유형','수행기준','날짜','현황'];
+  const pPData = pRows.map(r => [r.name, r.cycleType, r.criteria, r.date, r.status]);
+  const pPWS = XLSX.utils.aoa_to_sheet([pPH, ...pPData]);
+  pPWS['!cols'] = [{wch:28},{wch:10},{wch:20},{wch:12},{wch:12}];
+  XLSX.utils.book_append_sheet(wb, pPWS, '주기업무_현황');
+
+  // ── 2. 일회성업무 현황 시트 ──
+  // 진행사항이 있으면 각 항목별 행, 없으면 현황만
+  const otRows = [];
+  const sortedOT2 = [...state.oneTimeTasks].sort((a,b) => {
+    if (isDoneOT(a) !== isDoneOT(b)) return isDoneOT(a) ? 1 : -1;
+    return (b.requestedDate||b.plannedDate||'').localeCompare(a.requestedDate||a.plannedDate||'');
+  });
+  sortedOT2.forEach(t => {
+    if (t.progress && t.progress.length > 0) {
+      t.progress.forEach(p => {
+        otRows.push([
+          t.name, t.category||'', t.importance||'', t.urgency||'',
+          t.receivedDate||'', t.requestedDate||'', t.plannedDate||'',
+          t.status||'', t.requester||'', t.collaborator||'',
+          p.date||'', p.text||'', t.memo||''
+        ]);
+      });
+    } else {
+      otRows.push([
+        t.name, t.category||'', t.importance||'', t.urgency||'',
+        t.receivedDate||'', t.requestedDate||'', t.plannedDate||'',
+        t.status||'', t.requester||'', t.collaborator||'',
+        '', '', t.memo||''
+      ]);
+    }
+  });
+  const otPH = ['업무명','구분','중요도','긴급도','접수일','완료요청일','완료예정일',
+    '현황','요청의뢰자','협조자','진행날짜','진행사항','메모'];
+  const otPWS = XLSX.utils.aoa_to_sheet([otPH, ...otRows]);
+  otPWS['!cols'] = [{wch:26},{wch:12},{wch:8},{wch:8},{wch:12},{wch:12},{wch:12},{wch:12},
+    {wch:12},{wch:12},{wch:12},{wch:36},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, otPWS, '일회성업무_현황');
+
+  // ── 3. 회의 현황 시트 ──
+  // meetingResults 기반 (기록 없는 회의도 포함)
+  const mrRows = [];
+  state.meetings.forEach(m => {
+    const recs = state.meetingResults.filter(r => r.meetingId === m.id);
+    const cycleDetail = m.cycle === '주간' ? (m.weekDays||[]).join(',')
+      : m.cycle === '월간' ? `${m.weekNum||''} ${m.weekDayMonth||''}` : '';
+    if (recs.length === 0) {
+      mrRows.push({
+        row: [m.name, m.type||'', m.cycle||'', cycleDetail,
+          m.date||'', m.time||'', m.place||'', m.hostDept||'', m.hostPerson||'',
+          m.attendDept||'', m.agenda||'', '', '', '', ''],
+        done: false, date: m.date||''
+      });
+    } else {
+      recs.forEach(r => {
+        mrRows.push({
+          row: [m.name, m.type||'', m.cycle||'', cycleDetail,
+            r.date||m.date||'', m.time||'', m.place||'', m.hostDept||'', m.hostPerson||'',
+            m.attendDept||'', m.agenda||'', r.status||'', r.reason||'', r.result||''],
+          done: r.status === '참석완료' || r.status === '취소',
+          date: r.date||''
+        });
+      });
+    }
+  });
+  mrRows.sort((a,b) => {
+    // 취소는 맨 아래, 참석완료도 아래, 미기록은 위
+    const rankA = a.row[11] === '참석완료' ? 1 : a.row[11] === '취소' ? 2 : 0;
+    const rankB = b.row[11] === '참석완료' ? 1 : b.row[11] === '취소' ? 2 : 0;
+    if (rankA !== rankB) return rankA - rankB;
+    return (b.date||'').localeCompare(a.date||'');
+  });
+  const mrPH = ['회의명','유형','주기','수행기준','일자','시간','장소',
+    '주최부서','주최자','참석부서','회의안건','현황','미참석사유','회의결과'];
+  const mrPWS = XLSX.utils.aoa_to_sheet([mrPH, ...mrRows.map(r => r.row)]);
+  mrPWS['!cols'] = [{wch:26},{wch:8},{wch:8},{wch:16},{wch:12},{wch:10},{wch:16},
+    {wch:14},{wch:12},{wch:20},{wch:36},{wch:12},{wch:30},{wch:36}];
+  XLSX.utils.book_append_sheet(wb, mrPWS, '회의_현황');
+
+  // ── 4. ToDo 현황 시트 ──
+  // todoCompletions 기반 (정기) + status 기반 (수시)
+  const tdRows = [];
+  state.todos.forEach(td => {
+    if (td.type === '정기') {
+      const recs = state.todoCompletions.filter(c => c.todoId === td.id);
+      const cycleDetail = td.cycle === '주간' ? (td.weekDays||[]).join(',')
+        : td.cycle === '월간' ? `${td.weekNum||''} ${td.weekDayMonth||''}` : (td.cycle||'');
+      if (recs.length === 0) {
+        tdRows.push({row: [td.name, td.type, td.cycle||'', cycleDetail, '', '미완료', td.memo||''],
+          done: false});
+      } else {
+        recs.forEach(c => {
+          tdRows.push({row: [td.name, td.type, td.cycle||'', cycleDetail, c.date||'', '완료', td.memo||''],
+            done: true});
+        });
+      }
+    } else {
+      tdRows.push({
+        row: [td.name, td.type, '', '', td.date||'', td.status||'미완료', td.memo||''],
+        done: td.status === '완료'
+      });
+    }
+  });
+  tdRows.sort((a,b) => {
+    if (a.done !== b.done) return a.done ? 1 : -1;
+    return (b.row[4]||'').localeCompare(a.row[4]||'');
+  });
+  const tdPH = ['할일명','유형','주기','수행기준','날짜/기한','상태','메모'];
+  const tdPWS = XLSX.utils.aoa_to_sheet([tdPH, ...tdRows.map(r => r.row)]);
+  tdPWS['!cols'] = [{wch:28},{wch:8},{wch:8},{wch:20},{wch:12},{wch:10},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, tdPWS, 'ToDo_현황');
+
+  const dateStr = fmtDateShort(new Date()).replace(/-/g,'');
+  saveWorkbook(wb, `${dateStr}_업무진행현황.xlsx`);
+  showToast('진행 현황 엑셀이 다운로드됩니다');
+}
+function downloadPeriodicTemplate() {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const headers = ['업무명','주기유형','수행요일(주간용,콤마구분)','주차(월간/분기/연간)','요일(월간용)','분기월차(분기용)','월(연간용)','메모'];
+  const guide = [
+    '(필수) 업무명 입력',
+    '일일 / 주간 / 월간 / 분기 / 연간',
+    '주간일 때: 월,화,수,목,금 중 콤마로 입력 예) 월,금',
+    '월간/분기/연간일 때: 첫째주/둘째주/셋째주/넷째주',
+    '월간일 때: 월/화/수/목/금',
+    '분기일 때: 1월차/2월차/3월차',
+    '연간일 때: 1월~12월',
+    '선택 입력',
+  ];
+  const examples = [
+    ['일일점검','일일','','','','','','매일 수행'],
+    ['주간보고','주간','월,금','','','','',''],
+    ['월간결산','월간','','첫째주','월','','',''],
+    ['분기감사','분기','','둘째주','','1월차','','분기 첫째달'],
+    ['연간평가','연간','','셋째주','','','4월','상반기 평가'],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, guide, ...examples]);
+  ws['!cols'] = [{wch:20},{wch:12},{wch:24},{wch:18},{wch:12},{wch:14},{wch:10},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, '주기업무_양식');
+  saveWorkbook(wb, '주기업무_업로드양식.xlsx');
+}
+
+// ============================================================
+// 일회성업무 업로드 양식 다운로드
+// ============================================================
+function downloadOneTimeTemplate() {
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+  const wb = XLSX.utils.book_new();
+
+  const headers = ['업무명','구분','중요도','긴급도','접수일','완료요청일','완료예정일','현황','메모'];
+  const guide = [
+    '(필수) 업무명 입력',
+    '시설/설비/안전/교육/소모품/CS/개발과제/표준형과제/주문형과제/자격인증/관리/규정/자기계발',
+    'A / B / C',
+    'A / B / C',
+    'YYYY-MM-DD 형식',
+    'YYYY-MM-DD 형식',
+    'YYYY-MM-DD 형식',
+    '미완료/미수행/검토중/회신대기중/완료/보류',
+    '선택 입력',
+  ];
+  const today = fmtDateShort(new Date());
+  const examples = [
+    ['설비점검','설비','A','B',today,'','','미완료','정기 점검'],
+    ['안전교육','안전','B','A',today,today,'','검토중',''],
+    ['소모품구매','소모품','C','C',today,'','','미완료',''],
+  ];
+
+  const ws = XLSX.utils.aoa_to_sheet([headers, guide, ...examples]);
+  ws['!cols'] = [{wch:20},{wch:16},{wch:8},{wch:8},{wch:14},{wch:14},{wch:14},{wch:14},{wch:30}];
+  XLSX.utils.book_append_sheet(wb, ws, '일회성업무_양식');
+  saveWorkbook(wb, '일회성업무_업로드양식.xlsx');
+}
+
+// ============================================================
+// 업로드 트리거 및 파일 처리
+// ============================================================
+let _uploadType = '';
+
+function triggerUpload(type) {
+  _uploadType = type;
+  const input = document.getElementById('uploadFileInput');
+  input.value = ''; // 같은 파일 재선택 허용
+  input.click();
+}
+
+async function handleUploadFile(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  if (typeof XLSX === 'undefined') { showToast('XLSX 라이브러리 로딩 중...'); return; }
+
+  const reader = new FileReader();
+  reader.onload = async function(e) {
+    try {
+      const data = new Uint8Array(e.target.result);
+      const workbook = XLSX.read(data, {type: 'array'});
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, {header:1, defval:''});
+
+      if (rows.length < 3) { showToast('데이터가 없습니다. 3행(예시행) 이후부터 입력하세요'); return; }
+
+      // 1행=헤더, 2행=가이드 → 3행부터 데이터
+      const dataRows = rows.slice(2).filter(r => r[0] && String(r[0]).trim());
+
+      if (_uploadType === 'periodic') {
+        await uploadPeriodicRows(dataRows);
+      } else {
+        await uploadOneTimeRows(dataRows);
+      }
+    } catch(err) {
+      console.error(err);
+      showToast('파일 읽기 오류: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function uploadPeriodicRows(rows) {
+  const resultEl = document.getElementById('uploadResult');
+  let ok = 0, skip = 0;
+  const skipReasons = [];
+
+  for (const row of rows) {
+    const name = String(row[0]||'').trim();
+    const cycleType = String(row[1]||'').trim();
+
+    if (!name) { skip++; skipReasons.push(`빈 업무명 스킵`); continue; }
+    if (!['일일','주간','월간','분기','연간'].includes(cycleType)) {
+      skip++; skipReasons.push(`"${name}" — 주기유형 오류(${cycleType})`); continue;
+    }
+
+    const task = { name, cycleType, memo: String(row[7]||'').trim(), createdAt: new Date().toISOString() };
+
+    if (cycleType === '주간') {
+      const wd = String(row[2]||'').trim();
+      task.weekDays = wd ? wd.split(/[,，、]/).map(d=>d.trim()).filter(Boolean) : [];
+    }
+    if (cycleType === '월간') {
+      task.monthWeek = String(row[3]||'').trim();
+      task.monthDay = String(row[4]||'').trim();
+    }
+    if (cycleType === '분기') {
+      task.quarterWeek = String(row[3]||'').trim();
+      task.quarterMonth = String(row[5]||'').trim();
+    }
+    if (cycleType === '연간') {
+      task.yearWeek = String(row[3]||'').trim();
+      task.yearMonth = String(row[6]||'').trim();
+    }
+
+    const newId = await fbSave('periodicTasks', task, null);
+    state.periodicTasks.push({id: newId, ...task});
+    ok++;
+  }
+
+  saveLocal();
+  renderAll();
+  showUploadResult('주기업무', ok, skip, skipReasons);
+}
+
+async function uploadOneTimeRows(rows) {
+  let ok = 0, skip = 0;
+  const skipReasons = [];
+
+  for (const row of rows) {
+    const name = String(row[0]||'').trim();
+    if (!name) { skip++; skipReasons.push('빈 업무명 스킵'); continue; }
+
+    const task = {
+      name,
+      category: String(row[1]||'').trim(),
+      importance: String(row[2]||'').trim().toUpperCase(),
+      urgency: String(row[3]||'').trim().toUpperCase(),
+      receivedDate: normalizeDate(row[4]),
+      requestedDate: normalizeDate(row[5]),
+      plannedDate: normalizeDate(row[6]),
+      status: String(row[7]||'미완료').trim() || '미완료',
+      memo: String(row[8]||'').trim(),
+      progress: [],
+      createdAt: new Date().toISOString(),
+    };
+
+    const newId = await fbSave('oneTimeTasks', task, null);
+    state.oneTimeTasks.push({id: newId, ...task});
+    ok++;
+  }
+
+  saveLocal();
+  renderAll();
+  showUploadResult('일회성업무', ok, skip, skipReasons);
+}
+
+// 날짜 셀 값을 YYYY-MM-DD 문자열로 변환
+function normalizeDate(val) {
+  if (!val && val !== 0) return '';
+  // 엑셀 날짜 숫자인 경우
+  if (typeof val === 'number') {
+    const d = XLSX.SSF.parse_date_code(val);
+    if (d) return `${d.y}-${String(d.m).padStart(2,'0')}-${String(d.d).padStart(2,'0')}`;
+  }
+  const s = String(val).trim();
+  // YYYY-MM-DD 또는 YYYY/MM/DD
+  const m = s.match(/(\d{4})[-\/\.](\d{1,2})[-\/\.](\d{1,2})/);
+  if (m) return `${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+  return '';
+}
+
+function showUploadResult(type, ok, skip, skipReasons) {
+  const el = document.getElementById('uploadResult');
+  el.style.display = 'block';
+  el.innerHTML = `
+    <div class="upload-result-box">
+      <div class="upload-result-title">📊 "${type}" 업로드 결과</div>
+      <div class="upload-result-row upload-result-ok">✅ 성공: ${ok}건</div>
+      ${skip > 0 ? `<div class="upload-result-row upload-result-skip">⚠️ 스킵: ${skip}건</div>` : ''}
+      ${skipReasons.slice(0,5).map(r => `<div class="upload-result-row" style="font-size:11px;padding-left:12px;color:var(--text3)">• ${r}</div>`).join('')}
+      ${skipReasons.length > 5 ? `<div class="upload-result-row" style="font-size:11px;color:var(--text3)">... 외 ${skipReasons.length-5}건</div>` : ''}
+    </div>`;
+  showToast(`${ok}건 업로드 완료${skip>0?' ('+skip+'건 스킵)':''}`);
+}
+
+// ============================================================
+// GOOGLE CALENDAR 연동
+// ============================================================
+
+// 날짜 문자열(YYYY-MM-DD)을 GCal 형식(YYYYMMDD)으로 변환
+function toGCalDate(dateStr) {
+  return dateStr ? dateStr.replace(/-/g, '') : '';
+}
+
+// 종일 이벤트 날짜 범위 (당일)
+function makeGCalDates(dateStr) {
+  if (!dateStr) {
+    // 날짜 없으면 오늘 기준 종일 이벤트
+    dateStr = fmtDateShort(new Date());
+  }
+  const d = parseDateStr(dateStr);
+  const nextDay = new Date(d);
+  nextDay.setDate(nextDay.getDate() + 1);
+  return `${toGCalDate(dateStr)}/${toGCalDate(fmtDateShort(nextDay))}`;
+}
+
+// 구글 캘린더 URL 생성
+function buildGCalUrl({title, dates, details, location}) {
+  const base = 'https://calendar.google.com/calendar/render?action=TEMPLATE';
+  const params = new URLSearchParams({
+    text: title || '',
+    dates: dates || '',
+    details: details || '',
+    location: location || '',
+  });
+  return `${base}&${params.toString()}`;
+}
+
+// 메인 카드에서 캘린더 전송
+function sendToGCal_card(id, type, dateStr) {
+  if (type === 'periodic' || type === 'periodic_soon') {
+    const realId = id.replace('_soon', '');
+    const task = state.periodicTasks.find(t => t.id === realId);
+    if (!task) return;
+    const details = [
+      `유형: 주기업무 (${task.cycleType})`,
+      getCriteriaLabel(task) ? `수행기준: ${getCriteriaLabel(task)}` : '',
+      task.memo ? `메모: ${task.memo}` : '',
+    ].filter(Boolean).join('\n');
+    const url = buildGCalUrl({
+      title: `[주기] ${task.name}`,
+      dates: makeGCalDates(dateStr),
+      details,
+    });
+    window.open(url, '_blank');
+  } else {
+    const task = state.oneTimeTasks.find(t => t.id === id);
+    if (!task) return;
+    sendToGCal_oneTimeTask(task);
+  }
+}
+
+// 주기업무 모달에서 캘린더 전송
+function sendToGCal_periodic() {
+  const id = document.getElementById('pEditId').value;
+  const task = state.periodicTasks.find(t => t.id === id);
+  if (!task) { showToast('먼저 저장하세요'); return; }
+
+  const details = [
+    `유형: 주기업무 (${task.cycleType})`,
+    getCriteriaLabel(task) ? `수행기준: ${getCriteriaLabel(task)}` : '',
+    task.memo ? `메모: ${task.memo}` : '',
+  ].filter(Boolean).join('\n');
+
+  // 다음 수행일 계산
+  const next = getNextOccurrence(task, new Date());
+  const dateStr = next ? fmtDateShort(next) : fmtDateShort(new Date());
+
+  const url = buildGCalUrl({
+    title: `[주기] ${task.name}`,
+    dates: makeGCalDates(dateStr),
+    details,
+  });
+  window.open(url, '_blank');
+  showToast('구글 캘린더가 열렸습니다. 저장 버튼을 눌러주세요.');
+}
+
+// 일회성업무 모달에서 캘린더 전송
+function sendToGCal_onetime() {
+  const id = document.getElementById('otEditId').value;
+  const task = state.oneTimeTasks.find(t => t.id === id);
+  if (!task) { showToast('먼저 저장하세요'); return; }
+  sendToGCal_oneTimeTask(task);
+}
+
+function sendToGCal_oneTimeTask(task) {
+  const dateStr = task.requestedDate || task.plannedDate || fmtDateShort(new Date());
+
+  // 완료 예정일이 있으면 기간 이벤트로 설정
+  let dates;
+  if (task.requestedDate && task.plannedDate && task.requestedDate !== task.plannedDate) {
+    const endDay = new Date(parseDateStr(task.plannedDate));
+    endDay.setDate(endDay.getDate() + 1);
+    dates = `${toGCalDate(task.requestedDate)}/${toGCalDate(fmtDateShort(endDay))}`;
+  } else {
+    dates = makeGCalDates(dateStr);
+  }
+
+  const details = [
+    task.category ? `구분: ${task.category}` : '',
+    task.importance ? `중요도: ${task.importance}` : '',
+    task.urgency ? `긴급도: ${task.urgency}` : '',
+    task.receivedDate ? `접수일: ${task.receivedDate}` : '',
+    task.requestedDate ? `완료요청일: ${task.requestedDate}` : '',
+    task.plannedDate ? `완료예정일: ${task.plannedDate}` : '',
+    task.status ? `현황: ${task.status}` : '',
+    task.memo ? `메모: ${task.memo}` : '',
+    task.progress?.length ? `최근진행: ${task.progress[task.progress.length-1].text}` : '',
+  ].filter(Boolean).join('\n');
+
+  const url = buildGCalUrl({
+    title: `[업무] ${task.name}`,
+    dates,
+    details,
+  });
+  window.open(url, '_blank');
+  showToast('구글 캘린더가 열렸습니다. 저장 버튼을 눌러주세요.');
+}
+
+// ============================================================
+// HOLIDAY MANAGEMENT
+// ============================================================
+function openHolidayModal() {
+  renderHolidayList();
+  document.getElementById('newHolidayDate').value = '';
+  document.getElementById('newHolidayName').value = '';
+  openModal('modalHoliday');
+}
+
+function renderHolidayList() {
+  const cont = document.getElementById('holidayList');
+  const sorted = [...state.holidays].sort((a,b) => {
+    const da = typeof a === 'string' ? a : a.date;
+    const db2 = typeof b === 'string' ? b : b.date;
+    return da.localeCompare(db2);
+  });
+  if (sorted.length === 0) {
+    cont.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text3);font-size:12px">등록된 휴일이 없습니다</div>';
+    return;
+  }
+  cont.innerHTML = sorted.map((h, i) => {
+    const dateStr = typeof h === 'string' ? h : h.date;
+    const name = typeof h === 'string' ? '' : (h.name || '');
+    const d = parseDateStr(dateStr);
+    const label = d ? `${dateStr} (${KOR_DAYS[d.getDay()]})` : dateStr;
+    return `<div class="holiday-item">
+      <div>
+        <div class="holiday-item-date">${label}</div>
+        ${name ? `<div class="holiday-item-label">${name}</div>` : ''}
+      </div>
+      <button class="holiday-del-btn" onclick="deleteHoliday('${dateStr}')">✕</button>
+    </div>`;
+  }).join('');
+}
+
+async function addHoliday() {
+  const dateVal = document.getElementById('newHolidayDate').value;
+  const nameVal = document.getElementById('newHolidayName').value.trim();
+  if (!dateVal) { showToast('날짜를 선택하세요'); return; }
+  const already = state.holidays.some(h => (typeof h === 'string' ? h : h.date) === dateVal);
+  if (already) { showToast('이미 등록된 날짜입니다'); return; }
+  state.holidays.push({date: dateVal, name: nameVal});
+  await fbSaveHolidays();
+  saveLocal();
+  renderHolidayList();
+  renderTodayTasks();
+  showToast('휴일이 추가되었습니다');
+}
+
+async function deleteHoliday(dateStr) {
+  state.holidays = state.holidays.filter(h => (typeof h === 'string' ? h : h.date) !== dateStr);
+  await fbSaveHolidays();
+  saveLocal();
+  renderHolidayList();
+  renderTodayTasks();
+  showToast('휴일이 삭제되었습니다');
+}
+
+async function fbSaveHolidays() {
+  if (!db) { saveLocal(); return; }
+  try { await db.collection('settings').doc('holidays').set({list: state.holidays}); }
+  catch(e) { saveLocal(); }
+}
+
+// ============================================================
+// MODAL HELPERS
+// ============================================================
+function openModal(id) {
+  document.getElementById(id).classList.add('active');
+}
+
+function closeModal(id) {
+  document.getElementById(id).classList.remove('active');
+}
+
+// Close modal on overlay click
+document.querySelectorAll('.modal-overlay').forEach(overlay => {
+  overlay.addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+});
+
+// ============================================================
+// TOAST
+// ============================================================
+let toastTimer;
+function showToast(msg) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
+}
+
+// ============================================================
+// INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  initFirebase();
+});
+</script>
+</body>
+</html>
